@@ -7,9 +7,9 @@ This project is a simple Python web scraper that fetches data from a specified w
 - **Google Chrome**: Ensure you have Google Chrome installed.
 - **Python 3.x**
 - `requests` library for making HTTP requests
-- `BeautifulSoup` from `bs4` for parsing HTML (not use)
 - `re` (regular expressions) for data extraction
 - `selenium` for browser automation (if using ChromeDriver)
+- `pyyaml` for read yaml file
 
 ## Installation
 
@@ -46,19 +46,25 @@ This project is a simple Python web scraper that fetches data from a specified w
      - Move `chromedriver.exe` to a directory of your choice, such as `C:\Program Files\ChromeDriver`.
      - Add the path to the directory containing `chromedriver.exe` to your system's PATH environment variable.
 
-5. **Configure ChromeDriver in your script**:
-   - Replace the executable path in the following line with the path where `chromedriver` is installed on your system:
-     ```python
-     service = Service(executable_path='YOUR_CHROMEDRIVER_PATH')
-     ```
-   For example:
+5. **Update Configuration File (`config.yaml`)**:
+   Instead of specifying the URL and ChromeDriver path directly in the script, update them in the `config.yaml` file located in your project directory.
+
+   Example `config.yaml` file:
+   ```yaml
+   # Configuration for the web scraper
+   url: "https://www.capology.com/uk/premier-league/salaries/"
+   chromedriver_path: "/opt/homebrew/bin/chromedriver"  # Update this path based on your setup
+   ```
+
+   **Note**: Modify the `chromedriver_path` value based on your ChromeDriver installation path.
+
    - On **macOS**, it might look like:
-     ```python
-     service = Service(executable_path='/opt/homebrew/bin/chromedriver')
+     ```yaml
+     chromedriver_path: "/opt/homebrew/bin/chromedriver"
      ```
    - On **Windows**, it might look like:
-     ```python
-     service = Service(executable_path='C:\\Program Files\\ChromeDriver\\chromedriver.exe')
+     ```yaml
+     chromedriver_path: "C:\\Program Files\\ChromeDriver\\chromedriver.exe"
      ```
 
 ## Usage
@@ -69,4 +75,11 @@ This project is a simple Python web scraper that fetches data from a specified w
    ```
 
 ### Important Note:
-Make sure to replace any placeholder values such as `YOUR_CHROMEDRIVER_PATH` with the actual paths on your system. This will ensure that the script can locate and use ChromeDriver correctly.
+- Make sure to update the `config.yaml` file with the correct paths and URLs as described above.
+- This ensures that the script can locate and use ChromeDriver correctly and access the required webpage for scraping.
+
+### Configuration Reference
+- `url`: The URL of the website to scrape.
+- `chromedriver_path`: The path to your installed ChromeDriver executable.
+
+If the `config.yaml` file is not properly configured, the script will not be able to execute correctly, and you might encounter errors when trying to locate the ChromeDriver executable.
