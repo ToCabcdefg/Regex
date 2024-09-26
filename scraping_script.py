@@ -107,6 +107,8 @@ def get_player_data(teams):
 
     return teams
 
+def get_player_information_data():
+    return
 
 def save_to_csv(data, filename, data_type):
     """Save team or player data to a CSV file."""
@@ -135,8 +137,8 @@ def save_to_csv(data, filename, data_type):
 def main():
     html = fetch_html(URL)
     teams = get_team_data(html)
-    teams = get_player_data(teams)
     save_to_csv(teams, "teams.csv", "teams")  # Save teams to CSV
+    teams = get_player_data(teams)
     save_to_csv(teams, "players.csv", "players")  # Save players to CSV
 
 
