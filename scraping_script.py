@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from tqdm import tqdm  # Import tqdm for progress display
 
 # URL to scrape
 URL = "https://www.capology.com/uk/premier-league/salaries/"
@@ -21,7 +22,6 @@ def fetch_html(url):
 
 def get_team_data(html):
     """Extract team data using regular expressions."""
-    # Use regex to find all team links within the HTML
     teams_html = re.findall(
         r'<a href="([^"]+)">\s*<div class="team-row-group team-row-group-test">\s*<img.*?src="(.*?)".*?>\s*<h6 class="team-history-text".*?>(.*?)</h6>\s*</div>\s*</a>',
         html,
@@ -45,7 +45,7 @@ def get_team_data(html):
 def fetch_dynamic_html(url):
     """Fetch dynamic HTML content using Selenium."""
     options = Options()
-    options.add_argument("--headless")  # Uncomment for headless mode
+    options.add_argument("--headless") # Ensure GUI is off
     service = Service(executable_path='/opt/homebrew/bin/chromedriver')
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(url)
@@ -54,7 +54,7 @@ def fetch_dynamic_html(url):
         WebDriverWait(driver, 20).until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, "#table > tbody"))
         )
-        print("Page loaded successfully." , url , driver.title) 
+        # print("Page loaded successfully." , url , driver.title) 
 
     except Exception as e:
         print(f"Error loading the page or finding the element: {e}")
@@ -67,8 +67,10 @@ def fetch_dynamic_html(url):
 
 def get_player_data(teams):
     """Extract player data using regular expressions."""
+    total_teams = len(teams)
     
-    for team in teams:
+    # Use tqdm to display loading percentage
+    for team in tqdm(teams, desc="Fetching player data", unit="team"):
         team_url = team['URL']
         team_html = fetch_dynamic_html(team_url)
         if team_html:
@@ -85,7 +87,7 @@ def get_player_data(teams):
 
             team['Players'] = players
     
-    print(teams)
+    # print(teams)
     return teams
 
 def save_to_csv(items, filename="./teams.csv"):
