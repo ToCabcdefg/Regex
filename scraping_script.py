@@ -34,18 +34,16 @@ def get_team_data(html):
         teams.append({
             'Team Name': name.strip(),
             'URL': f"https://www.capology.com{url}",
-            'Image URL': img_url.strip()
+            'Image URL': img_url.strip(),
+            'Players': []  # Initialize an empty list for players
         })
-
-    for team in teams:
-        print(team)
 
     return teams
 
 def fetch_dynamic_html(url):
     """Fetch dynamic HTML content using Selenium."""
     options = Options()
-    options.add_argument("--headless") # Ensure GUI is off
+    options.add_argument("--headless")  # Ensure GUI is off
     service = Service(executable_path='/opt/homebrew/bin/chromedriver')
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(url)
@@ -54,7 +52,6 @@ def fetch_dynamic_html(url):
         WebDriverWait(driver, 20).until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, "#table > tbody"))
         )
-        # print("Page loaded successfully." , url , driver.title) 
 
     except Exception as e:
         print(f"Error loading the page or finding the element: {e}")
@@ -84,28 +81,37 @@ def get_player_data(teams):
                     player_name = name_match.group(1).strip()
                     players.append(player_name)
 
-            team['Players'] = players
+            team['Players'] = players  # Assign the list of players to the team
     
-    # print(teams)
     return teams
 
-def save_to_csv(items, filename="./teams.csv"):
-    """Save team data to a CSV file."""
-    rows = [[team['Team Name'], team['URL'], team['Image URL'], team['Players']] for team in items]
-
+def save_to_csv(data, filename, data_type):
+    """Save team or player data to a CSV file."""
+    if data_type == 'teams':
+        # Format players as a comma-separated string for CSV output
+        rows = [[team['Team Name'], team['URL'], team['Image URL'], ', '.join(team['Players'])] for team in data]
+        header = ["Team Name", "URL", "Image URL", 'Players']
+    elif data_type == 'players':
+        player_rows = []
+        for team in data:
+            for player in team['Players']:
+                player_rows.append([team['Team Name'], player])  # Associate each player with their team
+        rows = player_rows
+        header = ["Team Name", "Player Name"]
+    
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(["Team Name", "URL", "Image URL", 'Players'])
+        writer.writerow(header)
         writer.writerows(rows)
 
-    print(f"Data has been successfully saved to {filename}.")
+    print(f"{data_type.capitalize()} data has been successfully saved to {filename}.")
 
 def main():
     html = fetch_html(URL)
     teams = get_team_data(html)
     teams = get_player_data(teams)
-    save_to_csv(teams) 
-    save_to_csv()
+    save_to_csv(teams, "teams.csv", "teams")  # Save teams to CSV
+    save_to_csv(teams, "players.csv", "players")  # Save players to CSV
 
 if __name__ == "__main__":
     main()
