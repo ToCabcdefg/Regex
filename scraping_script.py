@@ -65,24 +65,33 @@ def fetch_dynamic_html(url):
 def get_player_data(teams):
     """Extract player data using regular expressions."""
     
-    # Use tqdm to display loading percentage
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
         team_url = team['URL']
         team_html = fetch_dynamic_html(team_url)
-        if team_html:
-            # Use regex to find all player rows in the HTML
-            players_html = re.findall(r'<tr>(.*?)</tr>', team_html, re.DOTALL)
-            
-            players = []
-            for player_html in players_html:
-                # Extract player name using regex
-                name_match = re.search(r'td.name-column > a.firstcol">(.*?)</a>', player_html, re.DOTALL)
-                if name_match:
-                    player_name = name_match.group(1).strip()
-                    players.append(player_name)
 
-            team['Players'] = players  # Assign the list of players to the team
-    
+        if team_html:
+            # Use regex to find the tbody section and extract all tr elements
+            tbody_match = re.search(r'<tbody>(.*?)</tbody>', team_html, re.DOTALL)
+
+            if tbody_match:
+                tbody_content = tbody_match.group(1)  # Get the content inside tbody
+                
+                # Find all player rows
+                players_html = re.findall(r'<tr.*?>(.*?)</tr>', tbody_content, re.DOTALL)
+
+                players = []
+                for player_html in players_html:
+                    # Extract player name using regex
+                    name_match = re.search(r'<td class="name-column">.*?<a.*?>(.*?)</a>', player_html, re.DOTALL)
+                    if name_match:
+                        # Using a regex to strip out any unwanted HTML tags and only capture the text
+                        player_name = re.sub(r'<.*?>', '', name_match.group(1)).strip()  # Remove any HTML tags
+                        players.append(player_name)
+                        # print("Player: " , player_name)
+                team['Players'] = players  # Assign the list of players to the team
+            else:
+                print(f"No <tbody> found for team: {team['Team Name']}")
+
     return teams
 
 def save_to_csv(data, filename, data_type):
