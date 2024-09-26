@@ -7,7 +7,7 @@ This project is a simple Python web scraper that fetches data from a specified w
 - **Google Chrome**: Ensure you have Google Chrome installed.
 - **Python 3.x**
 - `requests` library for making HTTP requests
-- `BeautifulSoup` from `bs4` for parsing HTML
+- `BeautifulSoup` from `bs4` for parsing HTML (not use)
 - `re` (regular expressions) for data extraction
 - `selenium` for browser automation (if using ChromeDriver)
 
