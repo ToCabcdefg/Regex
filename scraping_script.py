@@ -23,7 +23,7 @@ def get_team_data(html):
     """Extract team data using regular expressions."""
     # Use regex to find all team links within the HTML
     teams_html = re.findall(
-        r'<a href="(.*?)">\s*<div class="team-row-group team-row-group-test">\s*<img.*?src="(.*?)".*?>\s*<h6 class="team-history-text">(.*?)</h6>\s*</div>',
+        r'<a href="([^"]+)">\s*<div class="team-row-group team-row-group-test">\s*<img.*?src="(.*?)".*?>\s*<h6 class="team-history-text".*?>(.*?)</h6>\s*</div>\s*</a>',
         html,
         re.DOTALL
     )
@@ -45,7 +45,7 @@ def get_team_data(html):
 def fetch_dynamic_html(url):
     """Fetch dynamic HTML content using Selenium."""
     options = Options()
-    # options.add_argument("--headless")  # Uncomment for headless mode
+    options.add_argument("--headless")  # Uncomment for headless mode
     service = Service(executable_path='/opt/homebrew/bin/chromedriver')
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(url)
@@ -54,7 +54,8 @@ def fetch_dynamic_html(url):
         WebDriverWait(driver, 20).until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, "#table > tbody"))
         )
-        print(driver.page_source)  # Debug: check what is loaded
+        print("Page loaded successfully." , url , driver.title) 
+
     except Exception as e:
         print(f"Error loading the page or finding the element: {e}")
         driver.quit()
@@ -83,7 +84,8 @@ def get_player_data(teams):
                     players.append(player_name)
 
             team['Players'] = players
-
+    
+    print(teams)
     return teams
 
 def save_to_csv(items, filename="./teams.csv"):
@@ -100,7 +102,7 @@ def save_to_csv(items, filename="./teams.csv"):
 def main():
     html = fetch_html(URL)
     teams = get_team_data(html)
-    # teams = get_player_data(teams)
+    teams = get_player_data(teams)
     # save_to_csv(teams)  # Uncomment if you want to save teams to CSV
 
 if __name__ == "__main__":
