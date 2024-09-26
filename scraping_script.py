@@ -67,7 +67,6 @@ def fetch_dynamic_html(url):
 
 def get_player_data(teams):
     """Extract player data using regular expressions."""
-    total_teams = len(teams)
     
     # Use tqdm to display loading percentage
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
@@ -105,7 +104,8 @@ def main():
     html = fetch_html(URL)
     teams = get_team_data(html)
     teams = get_player_data(teams)
-    # save_to_csv(teams)  # Uncomment if you want to save teams to CSV
+    save_to_csv(teams) 
+    save_to_csv()
 
 if __name__ == "__main__":
     main()
