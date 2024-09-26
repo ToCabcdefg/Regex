@@ -8,9 +8,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from tqdm import tqdm  # Import tqdm for progress display
+import yaml
 
-# URL to scrape
-URL = "https://www.capology.com/uk/premier-league/salaries/"
+# Load configuration from YAML file
+with open("config.yaml", 'r') as config_file:
+    config = yaml.safe_load(config_file)
+
+# URL to scrape from configuration file
+URL = config['url']
+chromedriver_path = config['chromedriver_path']
 
 
 def fetch_html(url):
@@ -48,7 +54,7 @@ def fetch_dynamic_html(url):
     """Fetch dynamic HTML content using Selenium."""
     options = Options()
     options.add_argument("--headless")  # Ensure GUI is off
-    service = Service(executable_path='/opt/homebrew/bin/chromedriver')
+    service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(url)
 
