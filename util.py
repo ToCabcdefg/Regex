@@ -22,8 +22,7 @@ class Player:
             "link": self.link
         }
 
-
-def playerFromTransfer(html):
+def playerFromTransfer(html) -> list[Player]:
     players = []
     regex = r'<div class="row">(.*?)<div class="row"'
     
@@ -69,3 +68,21 @@ def playerFromTransfer(html):
             print(f"Error extracting player data: {e}")
 
     return players
+
+def getMaxPagination(html) -> int: 
+    max_pagination = 1
+    regex = r'<div class="row">(.*?)<div class="row"'
+
+    try:
+        html = re.findall(regex, html, re.DOTALL)[0]
+    except IndexError:
+        print("No rows found in the HTML.")
+        return max_pagination
+    regex = r'last-page.*?Spieler_page=(\d+)'
+    try:
+        html = re.findall(regex, html, re.DOTALL)[0]
+        print(int(html))
+        return int(html)
+    except IndexError:
+        print("No rows found in the HTML.")
+        return max_pagination

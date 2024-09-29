@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 import requests
-from util import playerFromTransfer
+from util import getMaxPagination, playerFromTransfer
 from flask_caching import Cache
 
 HEADERS = {
@@ -30,48 +30,52 @@ def form():
     return render_template('form.html')
 
 def get_cached_response(url):
-    # Check if response is cached
     cached_response = cache.get(url)
     if cached_response:
         return cached_response
     return None
 
-def cache_response(url, response):
-    # Store the response in Redis
-    cache.set(url, response, timeout=30000)  # Cache for 300 seconds
+def cache_response(url, response, length=30000):
+    cache.set(url, response, timeout=length)
 
 def get_players(data):
     players = []
-    for i in range(1, 100):
+    added_players = {}
+    i = 1
+    max_pagination = 1
+    while (i<=max_pagination):
         url = f"https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?Spieler_page={i}&query={data}"
-        
-        # Try to get cached response
         cached_html_content = get_cached_response(url)
         
         if cached_html_content is None:
-            # Fetch from Transfermarkt if not cached
             response = requests.get(url, headers=HEADERS)
             if response.status_code == 200:
                 cached_html_content = response.text
-                # Cache the response
                 cache_response(url, cached_html_content)
-        else:
-            print(f"Cache hit for URL: {url}")  # Optional: log cache hits
 
-        # Process the HTML content
-        players += playerFromTransfer(cached_html_content)
+        processed_players = playerFromTransfer(cached_html_content)
+        for player in processed_players:
+            if player.link not in added_players.keys():
+                added_players[player.link] = True
+                players.append(player) 
+        
+        if i==1:
+            max_pagination = getMaxPagination(cached_html_content)
+        i+=1
 
     return players
 
 @app.route('/submit', methods=['POST'])
 def submit():
-    data = request.form.get('data')
-    players = get_players(data.lower())
-
-    # Convert players to a list of dictionaries for JSON serialization
+    data = request.form.get('data').lower()
+    input_path = "/submit/"+data
+    cached_html_content = get_cached_response(input_path)
+    if cached_html_content is not None:
+        return cached_html_content
+    
+    players = get_players(data)
     players_dict = [player.to_dict() for player in players]
-
-    return jsonify(players_dict)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    response = jsonify(players_dict)
+    cache_response(input_path, response, 30)
+    
+    return response
