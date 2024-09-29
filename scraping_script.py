@@ -9,8 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from tqdm import tqdm  # Import tqdm for progress display
 import yaml
-from flask import Flask, jsonify
-import json
+from flask import Flask, jsonify , send_file
 import os
 
 app = Flask(__name__)  # Initialize Flask application
@@ -170,4 +169,4 @@ def save_teams_to_data():
 
 if __name__ == '__main__':
     save_teams_to_data()  # Load teams data when starting the app
-    app.run(debug=True, port=5555)  # Start the Flask application
+    app.run(port=5555)  # Start the Flask application
