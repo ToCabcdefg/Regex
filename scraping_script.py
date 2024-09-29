@@ -21,8 +21,8 @@ with open("config.yaml", 'r') as config_file:
 # URL to scrape from configuration file
 URL = config['url']
 chromedriver_path = config['chromedriver_path']
-
 teams_data = []  # This will store the teams data
+
 
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
@@ -37,6 +37,8 @@ def download_teams_csv():
         return send_file(csv_file_path, mimetype='text/csv', as_attachment=True)
     else:
         return jsonify({"error": "CSV file not found."}), 404
+
+
 
 def fetch_html(url):
     """Fetch HTML content of the webpage."""
@@ -139,7 +141,7 @@ def save_to_csv(data, filename, data_type):
     """Save team or player data to a CSV file."""
     if data_type == 'teams':
         # Format teams as a list of rows for CSV output
-        rows = [[team['Team Name'], team['URL'], team['Image URL'], ...] for team in data]
+        rows = [[team['Team Name'], team['URL'], team['Image URL']] for team in data]
         header = ["Team Name", "URL", "Image URL"]
     elif data_type == 'players':
         player_rows = []
