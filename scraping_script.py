@@ -9,6 +9,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from tqdm import tqdm  # Import tqdm for progress display
 import yaml
+from flask import Flask, jsonify
+import json
+import os
+
+app = Flask(__name__)  # Initialize Flask application
 
 # Load configuration from YAML file
 with open("config.yaml", 'r') as config_file:
@@ -18,6 +23,21 @@ with open("config.yaml", 'r') as config_file:
 URL = config['url']
 chromedriver_path = config['chromedriver_path']
 
+teams_data = []  # This will store the teams data
+
+@app.route('/api/teams', methods=['GET'])
+def get_teams():
+    """API endpoint to get team data."""
+    return jsonify(teams_data)  # Send teams data as JSON response
+
+@app.route('/api/teams/csv', methods=['GET'])
+def download_teams_csv():
+    """API endpoint to download the teams data as a CSV file."""
+    csv_file_path = "teams.csv"
+    if os.path.exists(csv_file_path):
+        return send_file(csv_file_path, mimetype='text/csv', as_attachment=True)
+    else:
+        return jsonify({"error": "CSV file not found."}), 404
 
 def fetch_html(url):
     """Fetch HTML content of the webpage."""
@@ -140,13 +160,14 @@ def save_to_csv(data, filename, data_type):
 
     print(f"{data_type.capitalize()} data has been successfully saved to {filename}.")
 
-def main():
+def save_teams_to_data():
+    """Function to save teams data for API."""
+    global teams_data
     html = fetch_html(URL)
-    teams = get_team_data(html)
-    save_to_csv(teams, "teams.csv", "teams")  # Save teams to CSV
-    teams = get_player_data(teams)
-    save_to_csv(teams, "players.csv", "players")  # Save players to CSV
+    teams_data = get_team_data(html)
+    teams_data = get_player_data(teams_data)  # Fetch players data
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    save_teams_to_data()  # Load teams data when starting the app
+    app.run(debug=True, port=5555)  # Start the Flask application
