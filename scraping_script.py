@@ -46,8 +46,7 @@ def fetch_html(url):
     if response.status_code == 200:
         return response.content.decode('utf-8')  # Decode bytes to string
     else:
-        raise Exception(f"Failed to retrieve the page. Status code: {
-                        response.status_code}")
+        raise Exception(f"Failed to retrieve the page. Status code: {response.status_code}")
 
 
 def get_team_data(html):
@@ -125,8 +124,7 @@ def get_player_data(teams):
                             r'href="([^"]+)"', name_match.group(1).strip())
                         player_name = re.sub(
                             r'<.*?>', '', name_match.group(2)).strip()
-                        url = f"https://www.capology.com{
-                            player_url.group(1).strip()}"
+                        url = f"https://www.capology.com{player_url.group(1).strip()}"
                         players.append({"name": player_name, "url": url})
                 team['Players'] = players
             else:
@@ -166,7 +164,9 @@ def save_teams_to_data():
     global teams_data
     html = fetch_html(URL)
     teams_data = get_team_data(html)
+    save_to_csv(teams_data, "teams.csv", "teams")
     teams_data = get_player_data(teams_data)  # Fetch players data
+    save_to_csv(teams_data, "players.csv", "players")
 
 
 if __name__ == '__main__':
