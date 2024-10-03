@@ -26,6 +26,7 @@ chromedriver_path = config['chromedriver_path']
 DOMAIN = config['domains']
 teams_data = []  # This will store the teams data
 
+
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
     """API endpoint to get team data."""
