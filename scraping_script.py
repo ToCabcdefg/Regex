@@ -20,6 +20,7 @@ app = Flask(__name__)  # Initialize Flask application
 with open("config.yaml", 'r') as config_file:
     config = yaml.safe_load(config_file)
 
+
 # URL to scrape from configuration file
 URL = config['urls']
 chromedriver_path = config['chromedriver_path']
