@@ -11,6 +11,8 @@ from tqdm import tqdm  # Import tqdm for progress display
 import yaml
 from flask import Flask, jsonify , send_file
 import os
+import html 
+from urllib.parse import urlparse
 
 app = Flask(__name__)  # Initialize Flask application
 
@@ -21,6 +23,7 @@ with open("config.yaml", 'r') as config_file:
 # URL to scrape from configuration file
 URL = config['url']
 chromedriver_path = config['chromedriver_path']
+domain = config['domain']
 teams_data = []  # This will store the teams data
 
 
@@ -49,27 +52,6 @@ def fetch_html(url):
         raise Exception(f"Failed to retrieve the page. Status code: {response.status_code}")
 
 
-def get_team_data(html):
-    """Extract team data using regular expressions."""
-    teams_html = re.findall(
-        r'<a href="([^"]+)">\s*<div class="team-row-group team-row-group-test">\s*<img.*?src="(.*?)".*?>\s*<h6 class="team-history-text".*?>(.*?)</h6>\s*</div>\s*</a>',
-        html,
-        re.DOTALL
-    )
-
-    # Create team entries
-    teams = []
-    for url, img_url, name in teams_html:
-        teams.append({
-            'Team Name': name.strip(),
-            'URL': f"https://www.capology.com{url}",
-            'Image URL': img_url.strip(),
-            'Players': []  # Initialize an empty list for players
-        })
-
-    return teams
-
-
 def fetch_dynamic_html(url):
     """Fetch dynamic HTML content using Selenium."""
     options = Options()
@@ -94,12 +76,58 @@ def fetch_dynamic_html(url):
     return html
 
 
+def is_valid_url(url):
+    """Check if the URL is valid."""
+    parsed_url = urlparse(url)
+    return bool(parsed_url.scheme) and bool(parsed_url.netloc)
+
+def get_team_data(html_content):
+    """Extract team data using regular expressions."""
+    # Updated regex to match the new HTML structure
+    premier_league_section = re.search(
+        r'<h2 class="[^"]*">Premier League</h2>(.*?)</div>',  # Match up until the closing div
+        html_content,
+        re.DOTALL
+    )
+    
+    if premier_league_section:
+        # Extract team names and URLs from the Premier League section
+        teams_html = re.findall(
+            r'<a href="([^"]+)">\s*<p class="Typography__Text-sc-1byk2c7-6 iXjxYl">(.*?)</p>\s*</a>',
+            premier_league_section.group(1),
+            re.DOTALL
+        )
+
+        # Create team entries
+        teams = []
+        for url, name in teams_html:
+            # Decode the URL to handle any HTML entities (e.g., &amp; -> &)
+            decoded_url = html.unescape(url.strip())
+            full_url = f"{domain}{decoded_url}"
+
+            # Check if the URL is valid before saving
+            if is_valid_url(full_url):
+                teams.append({
+                'Team Name': name.strip(),
+                'URL': full_url,
+                'Players': []  # Initialize an empty list for players
+            })
+            else:
+                print(f"Invalid URL for Team: {name.strip()}, URL: {full_url}")
+            
+            
+
+        return teams
+    
+    return []
+
+
 def get_player_data(teams):
     """Extract player data using regular expressions."""
 
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
         team_url = team['URL']
-        team_html = fetch_dynamic_html(team_url)
+        team_html = fetch_html(team_url)
 
         if team_html:
             # Use regex to find the tbody section and extract all tr elements
@@ -107,8 +135,7 @@ def get_player_data(teams):
                 r'<tbody>(.*?)</tbody>', team_html, re.DOTALL)
 
             if tbody_match:
-                tbody_content = tbody_match.group(
-                    1)  # Get the content inside tbody
+                tbody_content = tbody_match.group(1)  # Get the content inside tbody
 
                 # Find all player rows
                 players_html = re.findall(
@@ -116,16 +143,24 @@ def get_player_data(teams):
 
                 players = []
                 for player_html in players_html:
-                    # Extract player name using regex
+                    # Extract player name and URL using regex
                     name_match = re.search(
-                        r'<td class="name-column">.*?<a(.*?)>(.*?)</a>', player_html, re.DOTALL)
+                        r'<td class="headcol"><a.*?href="([^"]+)".*?>(.*?)</a>', player_html, re.DOTALL)
+                    
                     if name_match:
-                        player_url = re.search(
-                            r'href="([^"]+)"', name_match.group(1).strip())
-                        player_name = re.sub(
-                            r'<.*?>', '', name_match.group(2)).strip()
-                        url = f"https://www.capology.com{player_url.group(1).strip()}"
-                        players.append({"name": player_name, "url": url})
+                        player_url = name_match.group(1).strip()
+                        player_name = re.sub(r'<.*?>', '', name_match.group(2)).strip()
+
+                        # Construct the full URL
+                        full_url = f"{domain}{player_url}"
+
+                        # Check if the URL is valid before saving
+                        if is_valid_url(full_url):
+                            players.append({"name": player_name, "url": full_url})
+                        else:
+                            print(f"Invalid URL for player: {player_name}, URL: {full_url}")
+
+
                 team['Players'] = players
             else:
                 print(f"No <tbody> found for team: {team['Team Name']}")
@@ -164,9 +199,9 @@ def save_teams_to_data():
     global teams_data
     html = fetch_html(URL)
     teams_data = get_team_data(html)
-    save_to_csv(teams_data, "teams.csv", "teams")
+    # save_to_csv(teams_data, "teams.csv", "teams")
     teams_data = get_player_data(teams_data)  # Fetch players data
-    save_to_csv(teams_data, "players.csv", "players")
+    # save_to_csv(teams_data, "players.csv", "players")
 
 
 if __name__ == '__main__':
