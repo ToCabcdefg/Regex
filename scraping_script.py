@@ -14,6 +14,7 @@ import os
 import html 
 from urllib.parse import urlparse
 
+
 app = Flask(__name__)  # Initialize Flask application
 
 # Load configuration from YAML file
