@@ -21,9 +21,9 @@ with open("config.yaml", 'r') as config_file:
     config = yaml.safe_load(config_file)
 
 # URL to scrape from configuration file
-URL = config['url']
+URL = config['urls']
 chromedriver_path = config['chromedriver_path']
-domain = config['domain']
+DOMAIN = config['domains']
 teams_data = []  # This will store the teams data
 
 
@@ -81,7 +81,7 @@ def is_valid_url(url):
     parsed_url = urlparse(url)
     return bool(parsed_url.scheme) and bool(parsed_url.netloc)
 
-def get_team_data(html_content):
+def get_team_data(html_content,domain):
     """Extract team data using regular expressions."""
     # Updated regex to match the new HTML structure
     premier_league_section = re.search(
@@ -122,7 +122,7 @@ def get_team_data(html_content):
     return []
 
 
-def get_player_data(teams):
+def get_player_data(teams,domain):
     """Extract player data using regular expressions."""
 
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
@@ -197,10 +197,12 @@ def save_to_csv(data, filename, data_type):
 def save_teams_to_data():
     """Function to save teams data for API."""
     global teams_data
-    html = fetch_html(URL)
-    teams_data = get_team_data(html)
+    salarysport_url = URL[0]
+    salarysport_domain = DOMAIN[0]
+    html = fetch_html(salarysport_url)
+    teams_data = get_team_data(html,salarysport_domain)
     # save_to_csv(teams_data, "teams.csv", "teams")
-    teams_data = get_player_data(teams_data)  # Fetch players data
+    teams_data = get_player_data(teams_data,salarysport_domain)  # Fetch players data
     # save_to_csv(teams_data, "players.csv", "players")
 
 

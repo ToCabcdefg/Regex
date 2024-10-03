@@ -1,3 +1,5 @@
-url: "https://salarysport.com/football/#premier-league"
-domain: "https://salarysport.com"
+urls:
+- "https://salarysport.com/football/#premier-league"
+domains:
+- "https://salarysport.com"
 chromedriver_path: "/opt/homebrew/bin/chromedriver" # Change this as per your setup
