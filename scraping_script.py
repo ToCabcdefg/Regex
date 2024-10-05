@@ -106,7 +106,7 @@ def get_team_data(html_content,domain):
             full_url = f"{domain}{decoded_url}"
 
             # Check if the URL is valid before saving
-            if is_valid_url(full_url):
+            if is_valid_url(full_url) and name.strip() != "Highest Paid Players":
                 teams.append({
                 'Team Name': name.strip(),
                 'URL': full_url,
@@ -130,6 +130,14 @@ def get_player_data(teams,domain):
         team_html = fetch_html(team_url)
 
         if team_html:
+            logo_match = re.search(r'<img[^>]*?src="([^"]+)"[^>]*?alt="[^"]*?logo"', team_html)
+            
+            if logo_match:
+                team_logo_url = logo_match.group(1).strip()
+                team_logo_url = team_logo_url.replace("league-logos", "club-logos")
+                team['Logo URL'] = team_logo_url
+            else:
+                print(f"No team logo found for team: {team['Team Name']}")
             # Use regex to find the tbody section and extract all tr elements
             tbody_match = re.search(
                 r'<tbody>(.*?)</tbody>', team_html, re.DOTALL)
