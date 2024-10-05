@@ -216,4 +216,4 @@ def save_teams_to_data():
 
 if __name__ == '__main__':
     save_teams_to_data()  # Load teams data when starting the app
-    app.run(port=5555)  # Start the Flask application
+    app.run(host='0.0.0.0', port=5555)  # Start the Flask application
