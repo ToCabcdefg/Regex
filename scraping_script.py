@@ -118,6 +118,10 @@ def get_player_by_name(player_name):
                     }
                 })
     return jsonify(player_data)
+@app.route('/api/search', methods=['GET'])
+def search_default():
+    """API endpoint to search for teams or players by name."""
+    return get_players()
 
 @app.route('/api/search/<search_query>', methods=['GET'])
 def search(search_query):
