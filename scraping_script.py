@@ -105,7 +105,40 @@ def get_player_by_name(player_name):
                     }
                 })
     return jsonify(player_data)
-    
+
+@app.route('/api/search/<search_query>', methods=['GET'])
+def search(search_query):
+    """API endpoint to search for teams or players by name."""
+    search_query = search_query.lower()
+    results = {
+        "teams": [],
+        "players": []
+    }
+
+    for team in teams_data:
+        team_name = team["club_name"].lower()
+        if search_query in team_name:
+            results["teams"].append({
+                "club_name": team["club_name"],
+                "club_logo": team.get("club_logo_url", 'N/A')  # Default to 'N/A' if no logo found
+            })
+
+        for player in team["players"]:
+            player_name = player["name"].lower()
+            if search_query in player_name:
+                results["players"].append({
+                    "name": player["name"],
+                    "url": player["url"],
+                    "image_url": player.get("image_url", 'N/A'),  # Default to 'N/A' if missing
+                    "position": player.get("position", 'N/A'),  # Default to 'N/A' if missing
+                    "club": {  # Nested club object
+                        "club_name": team["club_name"],
+                        "club_logo": team.get("club_logo_url", 'N/A')  # Default to 'N/A' if no logo found
+                    }
+                })
+
+    return jsonify(results)
+
 
 
 
