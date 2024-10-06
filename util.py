@@ -1,5 +1,6 @@
 import re
 import requests
+from   datetime import datetime
 
 class Team: 
     def __init__(self, name, link):
@@ -121,8 +122,18 @@ def get_player_data(url):
                 cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
                 cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
                 cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+                if label == "Date of birth/Age:":
+                    split_data = cleaned_value.split('(')
+                    date_part = split_data[0].strip()
+                    age_part = split_data[1].strip()
+                    age_part = "("+age_part 
+                    date_object = datetime.strptime(date_part, '%B %d, %Y')
+                    formatted_date = date_object.strftime('%d/%m/%Y')
+                    cleaned_value = f"{formatted_date} {age_part}"
+                if label == "Height:":
+                    cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
                 if label and cleaned_value:
-                        data_dict[label] = cleaned_value  
+                    data_dict[label] = cleaned_value  
         return data_dict
 
 def get_all_teams():
