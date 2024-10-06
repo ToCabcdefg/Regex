@@ -19,6 +19,7 @@ app = Flask(__name__)  # Initialize Flask application
 
 # Load configuration from YAML file
 config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')  # Default to development config
+# config_file = os.getenv('CONFIG_FILE', 'config_docker.yaml')  # For docker config
 with open(config_file, 'r') as config_file:
     config = yaml.safe_load(config_file)
 
