@@ -75,6 +75,39 @@ def get_team_by_name(team_name):
     else:
         # If the team is not found, return a 404 error
         return jsonify({"error": "Team not found"}), 404
+    
+@app.route('/api/teams', methods=['GET'])
+def get_teams():
+    """API endpoint to get team data."""
+    teams = []
+    for team in teams_data:
+        teams.append({
+            "club_name": team["club_name"],
+            "club_logo": team.get("club_logo_url", 'N/A')  # Default to 'N/A' if no logo found
+        })
+    return jsonify(teams)
+
+@app.route('/api/player/<player_name>', methods=['GET'])
+def get_player_by_name(player_name):
+    """API endpoint to get detailed information of a specific player by name."""
+    player_data = []
+    for team in teams_data:
+        for player in team["players"]:
+            if player["name"].lower() == player_name.lower():
+                player_data.append({
+                    "name": player["name"],
+                    "url": player["url"],
+                    "image_url": player.get("image_url", 'N/A'),  # Default to 'N/A' if missing
+                    "position": player.get("position", 'N/A'),  # Default to 'N/A' if missing
+                    "club": {  # Nested club object
+                        "club_name": team["club_name"],
+                        "club_logo": team.get("club_logo_url", 'N/A')  # Default to 'N/A' if no logo found
+                    }
+                })
+    return jsonify(player_data)
+    
+
+
 
 
 @app.route('/api/teams/csv', methods=['GET'])
