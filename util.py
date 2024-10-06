@@ -119,21 +119,28 @@ def get_player_data(url):
             label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
             value = contents[i + 1] if i + 1 < len(contents) else None
             if value:
-                cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
-                cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
-                cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
-                if label == "Date of birth/Age:":
-                    split_data = cleaned_value.split('(')
-                    date_part = split_data[0].strip()
-                    age_part = split_data[1].strip()
-                    age_part = "("+age_part 
-                    date_object = datetime.strptime(date_part, '%B %d, %Y')
-                    formatted_date = date_object.strftime('%d/%m/%Y')
-                    cleaned_value = f"{formatted_date} {age_part}"
-                if label == "Height:":
-                    cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
-                if label and cleaned_value:
-                    data_dict[label] = cleaned_value  
+                    cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
+                    cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
+                    cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+                    if label == "Date of birth/Age:":
+                        split_data = cleaned_value.split('(')
+                        date_part = split_data[0].strip()
+                        age_part = split_data[1].strip(")")
+                        date_object = datetime.strptime(date_part, '%b %d, %Y')
+                        formatted_date = date_object.strftime('%d/%m/%Y')
+                        cleaned_value = f"{formatted_date} {age_part}"
+                        data_dict["DOB"] = formatted_date
+                        data_dict["age"] = age_part  
+                    elif label == "Height:":
+                        cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
+                        data_dict[label] = cleaned_value  
+                    elif label in ["Full name:","Name in home country:"]:
+                        data_dict["full_name"] = cleaned_value  
+                    elif  label == "Foot:":
+                        data_dict["foot"] = cleaned_value  
+                    # if label and cleaned_value:
+                    #      data_dict[label] = cleaned_value  
+                    
         return data_dict
 
 def get_all_teams():
