@@ -25,6 +25,8 @@ class Player:
         self.height = height 
         self.foot = foot
 
+    
+
 HEADERS = {
     "Host": "www.transfermarkt.com",
     "Sec-Ch-Ua": '"Not;A=Brand";v="24", "Chromium";v="128"',
@@ -185,14 +187,6 @@ def get_player_in_team(team: Team):
         nationalities = re.findall(nationality_regex, td[5], re.DOTALL)
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
         team.players.append(Player(number, name, link, nationalities))
-        
-def get_transfer_history():
-    response = requests.get("https://www.transfermarkt.com/riccardo-calafiori/profil/spieler/502821", headers=HEADERS)
-    html = response.text
-    print(html)
-    regex = r'<tm-transfer-history.*?>(.*?)</tm-transfer-history>'
-    html = re.findall(regex, html, re.DOTALL)
-    # print(html)
 
 def get_awards(player: Player):
     response = requests.get(player.award_link, headers=HEADERS)
@@ -200,19 +194,22 @@ def get_awards(player: Player):
     awards = []
     if response.status_code == 200 :
         html = response.text
-        regex = r'<div class="row">(.?)<div class="large-4'
+        regex = r'<div class="row">(.*?)<div class="large-4'
         html = re.findall(regex, html, re.DOTALL)[0]
-        regex = r'<h2 class="content-box-headline">(.?)</h2>'
+        regex = r'<h2 class="content-box-headline">(.*?)</h2>'
         html = re.findall(regex, html, re.DOTALL)
         for award in html:
             temp = award.strip().split('x ')
             temp = temp[1] + ' (' + temp[0] + ')'
             awards.append(temp)
 
-
+    # print(awards)
+       
 get_all_teams()
 for team in teams[:1]:
     get_player_in_team(team)
+
 get_awards(teams[0].players[0])
+# get_stats(teams[0].players[0])
 # get_full_player_details(teams[0].players[0])
 # print(teams[0].players[0].__dict__)
