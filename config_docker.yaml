@@ -1,0 +1,5 @@
+urls:
+- "https://salarysport.com/football/#premier-league"
+domains:
+- "https://salarysport.com"
+chromedriver_path: "/usr/bin/chromedriver" # Path for Docker environment

@@ -18,7 +18,8 @@ from urllib.parse import urlparse
 app = Flask(__name__)  # Initialize Flask application
 
 # Load configuration from YAML file
-with open("config.yaml", 'r') as config_file:
+config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')  # Default to development config
+with open(config_file, 'r') as config_file:
     config = yaml.safe_load(config_file)
 
 # URL to scrape from configuration file
@@ -125,20 +126,14 @@ def get_player_data(teams, domain):
     """Extract player data using Selenium and regular expressions."""
     # Initialize the Selenium WebDriver outside the loop to reuse it
     options = Options()
-    options.add_argument("--headless")  # Ensure GUI is off
-    options.add_argument("--no-sandbox")  # Bypass OS security model
-    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
-    options.add_argument("--disable-gpu")  # Disable GPU acceleration
-    options.add_argument("--disable-extensions")  # Disable extensions
-    options.add_argument("--disable-software-rasterizer")  # Use hardware rasterizer if available
-    # options.add_argument("--window-size=1920x1080")  # Set window size for headless mode
-
-    # Optional: Set the binary location if needed
-    options.binary_location = "/usr/bin/chromium"
-
-    # Create a Service object with the path to Chromedriver
+    options.add_argument("--headless")  # Ensure GUI is off for headless mode
+     # Optional: For Docker environment
+    # options.binary_location = "/usr/bin/chromium"  # Path for Docker environment
+    # options.add_argument("--no-sandbox")  # Bypass OS security model for Docker
+    # options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    # options.add_argument("--disable-gpu")  # Disable GPU acceleration
+    # options.add_argument("--disable-extensions")  # Disable extensions
     service = Service(executable_path=chromedriver_path)
-
     driver = webdriver.Chrome(service=service, options=options)
 
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
