@@ -118,8 +118,8 @@ def get_player_data(url):
             label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
             value = contents[i + 1] if i + 1 < len(contents) else None
             if value:
-                cleaned_value = re.sub(r'<img[^>]*alt="([^"]*)"[^>]*>', r'\1', value)
-                cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', cleaned_value).strip()  
+                cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
+                cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
                 cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
                 if label and cleaned_value:
                         data_dict[label] = cleaned_value  
