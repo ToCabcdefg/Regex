@@ -221,6 +221,8 @@ def get_player_data(teams, domain):
     # Close the Selenium driver after fetching all data
     driver.quit()
     return teams
+
+
 def save_to_csv(data, filename, data_type):
     """Save team or player data to a CSV file."""
     if data_type == 'teams':
