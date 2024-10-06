@@ -66,16 +66,29 @@ def get_team_by_name(team_name):
     team = next((team for team in teams_data if team['club_name'].lower() == team_name.lower()), None)
     
     if team:
-        # If the team is found, return the team details along with the players
+        team_name = team["club_name"]
+        team_logo = team.get("club_logo_url", 'N/A')  # Default to 'N/A' if no logo is found
+
+        # Create a copy of players and add club information to each
+        players_with_club = []
+        for player in team["players"]:
+            player_with_club = player.copy()  # Copy the player data to avoid modifying the original
+            player_with_club["club"] = {
+                "club_name": team_name,
+                "club_logo": team_logo
+            }
+            players_with_club.append(player_with_club)
+        
         return jsonify({
-            "club_name": team['club_name'],
-            'team_logo': team.get("club_logo_url", 'N/A'),  # Return 'N/A' if no logo found
-            "players": team["players"]  # Return the list of players for the team
+            "club_name": team["club_name"],
+            "club_logo": team_logo,
+            "players": players_with_club
         })
+
     else:
         # If the team is not found, return a 404 error
         return jsonify({"error": "Team not found"}), 404
-    
+
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
     """API endpoint to get team data."""
