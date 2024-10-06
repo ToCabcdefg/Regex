@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from tqdm import tqdm  # Import tqdm for progress display
 import yaml
 from flask import Flask, jsonify , send_file
@@ -120,10 +121,13 @@ def get_team_data(html_content,domain):
         return teams
     
     return []
-
-
-def get_player_data(teams,domain):
-    """Extract player data using regular expressions."""
+def get_player_data(teams, domain):
+    """Extract player data using Selenium and regular expressions."""
+    # Initialize the Selenium WebDriver outside the loop to reuse it
+    options = Options()
+    options.add_argument("--headless")  # Ensure GUI is off for headless mode
+    service = Service(executable_path=chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=options)
 
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
         team_url = team['URL']
@@ -131,30 +135,27 @@ def get_player_data(teams,domain):
 
         if team_html:
             logo_match = re.search(r'<img[^>]*?src="([^"]+)"[^>]*?alt="[^"]*?logo"', team_html)
-            
             if logo_match:
                 team_logo_url = logo_match.group(1).strip()
                 team_logo_url = team_logo_url.replace("league-logos", "club-logos")
                 team['Logo URL'] = team_logo_url
             else:
                 print(f"No team logo found for team: {team['Team Name']}")
-            # Use regex to find the tbody section and extract all tr elements
-            tbody_match = re.search(
-                r'<tbody>(.*?)</tbody>', team_html, re.DOTALL)
 
+            # Use regex to find the tbody section and extract all tr elements
+            tbody_match = re.search(r'<tbody>(.*?)</tbody>', team_html, re.DOTALL)
             if tbody_match:
                 tbody_content = tbody_match.group(1)  # Get the content inside tbody
 
                 # Find all player rows
-                players_html = re.findall(
-                    r'<tr.*?>(.*?)</tr>', tbody_content, re.DOTALL)
+                players_html = re.findall(r'<tr.*?>(.*?)</tr>', tbody_content, re.DOTALL)
 
                 players = []
                 for player_html in players_html:
                     # Extract player name and URL using regex
                     name_match = re.search(
                         r'<td class="headcol"><a.*?href="([^"]+)".*?>(.*?)</a>', player_html, re.DOTALL)
-                    
+
                     if name_match:
                         player_url = name_match.group(1).strip()
                         player_name = re.sub(r'<.*?>', '', name_match.group(2)).strip()
@@ -164,20 +165,62 @@ def get_player_data(teams,domain):
 
                         # Check if the URL is valid before saving
                         if is_valid_url(full_url):
-                            players.append({"name": player_name, "url": full_url})
+                            # Go to the Premier League player search page
+                            driver.get('https://www.premierleague.com/players')
+
+                            # Wait until the search input field is visible and interactable
+                            try:
+                                search_input = WebDriverWait(driver, 20).until(
+                                    EC.element_to_be_clickable((By.ID, "search-input"))
+                                )
+
+                                # Enter the player's name and press Enter
+                                search_input.clear()
+                                search_input.send_keys(player_name)
+                                search_input.send_keys(Keys.RETURN)
+
+                                # Wait until the search results load (e.g., an element with class 'player' becomes visible)
+                                WebDriverWait(driver, 20).until(
+                                    EC.visibility_of_element_located((By.CLASS_NAME, "player"))
+                                )
+
+                                # Get the page HTML content after the results have loaded
+                                html_content = driver.page_source
+
+                                # Define regex patterns to find the image URL and position
+                                pattern_image = r'<img[^>]*class="img player__name-image"[^>]*src="([^"]*)"'
+                                pattern_position = r'<td[^>]*class="u-hide-mobile-lg player__position"[^>]*>(.*?)<\/td>'
+
+                                # Search for image URL and position in the HTML content
+                                match_image = re.search(pattern_image, html_content)
+                                match_position = re.search(pattern_position, html_content)
+
+                                # Extract the data
+                                image_url = match_image.group(1).replace("40x40", "250x250") if match_image else "N/A"
+                                position = match_position.group(1) if match_position else "N/A"
+
+                                # Append the player data to the list
+                                players.append({
+                                    "name": player_name,
+                                    "url": full_url,
+                                    "image_url": image_url,
+                                    "position": position
+                                })
+
+                                # Print for debugging
+                                print(f"Player: {player_name}, Image URL: {image_url}, Position: {position}")
+                            except Exception as e:
+                                print(f"Error fetching player data for {player_name}: {e}")
                         else:
                             print(f"Invalid URL for player: {player_name}, URL: {full_url}")
-
 
                 team['Players'] = players
             else:
                 print(f"No <tbody> found for team: {team['Team Name']}")
 
+    # Close the Selenium driver after fetching all data
+    driver.quit()
     return teams
-
-def get_player_information_data():
-    return
-
 def save_to_csv(data, filename, data_type):
     """Save team or player data to a CSV file."""
     if data_type == 'teams':
