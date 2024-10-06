@@ -133,7 +133,7 @@ def get_player_data(url):
                         data_dict["age"] = age_part  
                     elif label == "Height:":
                         cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
-                        data_dict[label] = cleaned_value  
+                        data_dict["height"] = cleaned_value  
                     elif label in ["Full name:","Name in home country:"]:
                         data_dict["full_name"] = cleaned_value  
                     elif  label == "Foot:":
