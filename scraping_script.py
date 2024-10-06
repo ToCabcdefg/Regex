@@ -125,8 +125,20 @@ def get_player_data(teams, domain):
     """Extract player data using Selenium and regular expressions."""
     # Initialize the Selenium WebDriver outside the loop to reuse it
     options = Options()
-    options.add_argument("--headless")  # Ensure GUI is off for headless mode
+    options.add_argument("--headless")  # Ensure GUI is off
+    options.add_argument("--no-sandbox")  # Bypass OS security model
+    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    options.add_argument("--disable-gpu")  # Disable GPU acceleration
+    options.add_argument("--disable-extensions")  # Disable extensions
+    options.add_argument("--disable-software-rasterizer")  # Use hardware rasterizer if available
+    # options.add_argument("--window-size=1920x1080")  # Set window size for headless mode
+
+    # Optional: Set the binary location if needed
+    options.binary_location = "/usr/bin/chromium"
+
+    # Create a Service object with the path to Chromedriver
     service = Service(executable_path=chromedriver_path)
+
     driver = webdriver.Chrome(service=service, options=options)
 
     for team in tqdm(teams, desc="Fetching player data", unit="team"):
