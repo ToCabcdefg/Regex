@@ -1,3 +1,4 @@
+from   datetime import datetime
 import re
 import requests
 
@@ -9,10 +10,19 @@ class Team:
         self.logo = ""
         self.background = ""
 class Player:
-    def __init__(self, number, name, link ):
+    def __init__(self, number, name, link, nationalities):
         self.number = number
         self.name = name
-        self.link = link
+        self.profile_link = "https://www.transfermarkt.com" +  link
+        self.stat_link =  self.profile_link.replace("profil", "leistungsdatendetails")
+        self.nationalities = nationalities
+        
+    def add_player_profile(self, full_name, DOB, age, height, foot):
+        self.full_name = full_name
+        self.DOB = DOB 
+        self.age = age 
+        self.height = height 
+        self.foot = foot
 
 HEADERS = {
     "Host": "www.transfermarkt.com",
@@ -100,7 +110,41 @@ def get_brief_player_details(html) -> list[Player]:
     return players
     
 def get_full_player_details(player: Player):
-    return
+    response = requests.get(player.profile_link, headers=HEADERS)
+    if response.status_code == 200:
+        content = response.text
+        pattern = r'<div class="info-table[^>]*">(.*?)<\/div>'
+        contents = re.findall(pattern, content, re.DOTALL)[0]
+        span_pattern = r'<span[^>]*class="info-table__content[^>]*>(.*?)<\/span>'
+        contents = re.findall(span_pattern, content, re.DOTALL)
+        data_dict = {}
+        for i in range(0, len(contents), 2):
+            label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
+            value = contents[i + 1] if i + 1 < len(contents) else None
+            if value:
+                    cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
+                    cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
+                    cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+                    if label == "Date of birth/Age:":
+                        split_data = cleaned_value.split('(')
+                        date_part = split_data[0].strip()
+                        age_part = split_data[1].strip(")")
+                        date_object = datetime.strptime(date_part, '%b %d, %Y')
+                        formatted_date = date_object.strftime('%d/%m/%Y')
+                        cleaned_value = f"{formatted_date} {age_part}"
+                        data_dict["DOB"] = formatted_date
+                        data_dict["age"] = age_part  
+                    elif label == "Height:":
+                        cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
+                        data_dict["height"] = cleaned_value  
+                    elif label in ["Full name:","Name in home country:"]:
+                        data_dict["full_name"] = cleaned_value  
+                    elif  label == "Foot:":
+                        data_dict["foot"] = cleaned_value  
+                    # if label and cleaned_value:
+                    #      data_dict[label] = cleaned_value  
+                    
+        player.add_player_profile(data_dict["full_name"], data_dict["DOB"], data_dict["age"], data_dict["height"], data_dict["foot"])
 
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
@@ -126,22 +170,23 @@ def get_player_in_team(team: Team):
     html = re.findall(regex, html, re.DOTALL)[0]
     regex = r'<tbody*?>(.*?)</tbody>'
     html = re.findall(regex, html, re.DOTALL)[0]
-    regex = r'(even|odd)">(.*?)(<tr class="|</tbody>)'
+    regex = r'(even|odd)">(.*?)(<tr class="|$)'
     players_html = re.findall(regex, html, re.DOTALL)
     title_regex = r'title="(.*?)"'
     link_regex = r'href="(.*?)"'
+    nationality_regex = r'alt="(.*?)"'
     td_regex = r'<td.*?>(.*?)</td>'
     number_regex = r'rn_nummer>(.*?)</div>'
     for player_html in players_html:
         td = re.findall(td_regex, player_html[1], re.DOTALL)
         number = re.findall(number_regex, td[0], re.DOTALL)[0]
         name = re.findall(title_regex, td[1], re.DOTALL)[-1]
-        link = "https://www.transfermarkt.com/" +  re.findall(link_regex, td[2], re.DOTALL)[0]
-        team.players.append(Player(number, name, link))
+        nationalities = re.findall(nationality_regex, td[5], re.DOTALL)
+        link = re.findall(link_regex, td[2], re.DOTALL)[0]
+        team.players.append(Player(number, name, link, nationalities))
         
-# get_all_teams()
-# for team in teams[:5]:
-#     get_player_in_team(team)
-# for team in teams:
-#     for player in team.players:
-#         print(player.number, player.name)
+get_all_teams()
+for team in teams[:1]:
+    get_player_in_team(team)
+get_full_player_details(teams[0].players[0])
+print(teams[0].players[0].__dict__)
