@@ -102,6 +102,29 @@ def get_brief_player_details(html) -> list[Player]:
 def get_full_player_details(player: Player):
     return
 
+def get_player_data(url):
+    player_name = "kylian-mbappe"
+    id = "342229"
+    url_example = "https://www.transfermarkt.com/{player_name}/profil/spieler/{id}"
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code == 200:
+        content = response.text
+        pattern = r'<div class="info-table[^>]*">(.*?)<\/div>'
+        contents = re.findall(pattern, content, re.DOTALL)[0]
+        span_pattern = r'<span[^>]*class="info-table__content[^>]*>(.*?)<\/span>'
+        contents = re.findall(span_pattern, content, re.DOTALL)
+        data_dict = {}
+        for i in range(0, len(contents), 2):
+            label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
+            value = contents[i + 1] if i + 1 < len(contents) else None
+            if value:
+                cleaned_value = re.sub(r'<img[^>]*alt="([^"]*)"[^>]*>', r'\1', value)
+                cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', cleaned_value).strip()  
+                cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+                if label and cleaned_value:
+                        data_dict[label] = cleaned_value  
+        return data_dict
+
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
     response = requests.get(url, headers=HEADERS)
