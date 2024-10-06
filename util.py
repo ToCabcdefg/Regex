@@ -24,6 +24,8 @@ class Player:
         self.height = height 
         self.foot = foot
 
+    
+
 HEADERS = {
     "Host": "www.transfermarkt.com",
     "Sec-Ch-Ua": '"Not;A=Brand";v="24", "Chromium";v="128"',
@@ -184,9 +186,41 @@ def get_player_in_team(team: Team):
         nationalities = re.findall(nationality_regex, td[5], re.DOTALL)
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
         team.players.append(Player(number, name, link, nationalities))
+
+def get_stats(player : Player):
+    appearances = 0
+    goals_or_clean_sheet = 0
+    minutes_played = 0
+
+    response = requests.get(player.stat_link, headers=HEADERS)
+    if response.status_code == 200 :
+        html = response.text
+        regex = r'<div id="yw1"[^>]*>([\s\S]*?)</table>'
+        html = re.findall(regex, html, re.DOTALL)[0]
+        regex = r'(even|odd)">(.*?)(<tr class="|$)'
+        html = re.findall(regex, html, re.DOTALL)
+        for leage in html :
+            leage = ''.join(leage)
+            premier_leage_regex = r'title="Premier League" [^>]*>(.*?)</tr>'
+            premier_leage = re.findall(premier_leage_regex, leage, re.DOTALL)
+            if premier_leage :
+                td_regex = r'<td.*?>(.*?)</td>'
+                td = re.findall(td_regex, premier_leage[0], re.DOTALL)
+                appearances_regex = r'<a.*?>(.*?)</a>'
+                appearances += int(re.findall(appearances_regex, td[2], re.DOTALL)[0])
+                if player.position == 'goalkeeper':
+                    goals_or_clean_sheet += int(td[6])
+                    minute = td[7]
+                    minutes_played += int(''.join(re.findall(r'\d+', minute)))
+                else :
+                    goals_or_clean_sheet += int(td[3])
+                    minute = td[6]
+                    minutes_played += int(''.join(re.findall(r'\d+', minute)))
+
         
 get_all_teams()
 for team in teams[:1]:
     get_player_in_team(team)
-get_full_player_details(teams[0].players[0])
-print(teams[0].players[0].__dict__)
+get_stats(teams[0].players[0])
+# get_full_player_details(teams[0].players[0])
+# print(teams[0].players[0].__dict__)
