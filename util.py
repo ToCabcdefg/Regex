@@ -15,6 +15,7 @@ class Player:
         self.name = name
         self.profile_link = "https://www.transfermarkt.com" +  link
         self.stat_link =  self.profile_link.replace("profil", "leistungsdatendetails")
+        self.award_link = self.profile_link.replace("profil", "erfolge")
         self.nationalities = nationalities
         
     def add_player_profile(self, full_name, DOB, age, height, foot):
@@ -185,8 +186,33 @@ def get_player_in_team(team: Team):
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
         team.players.append(Player(number, name, link, nationalities))
         
+def get_transfer_history():
+    response = requests.get("https://www.transfermarkt.com/riccardo-calafiori/profil/spieler/502821", headers=HEADERS)
+    html = response.text
+    print(html)
+    regex = r'<tm-transfer-history.*?>(.*?)</tm-transfer-history>'
+    html = re.findall(regex, html, re.DOTALL)
+    # print(html)
+
+def get_awards(player: Player):
+    response = requests.get(player.award_link, headers=HEADERS)
+
+    awards = []
+    if response.status_code == 200 :
+        html = response.text
+        regex = r'<div class="row">(.?)<div class="large-4'
+        html = re.findall(regex, html, re.DOTALL)[0]
+        regex = r'<h2 class="content-box-headline">(.?)</h2>'
+        html = re.findall(regex, html, re.DOTALL)
+        for award in html:
+            temp = award.strip().split('x ')
+            temp = temp[1] + ' (' + temp[0] + ')'
+            awards.append(temp)
+
+
 get_all_teams()
 for team in teams[:1]:
     get_player_in_team(team)
-get_full_player_details(teams[0].players[0])
-print(teams[0].players[0].__dict__)
+get_awards(teams[0].players[0])
+# get_full_player_details(teams[0].players[0])
+# print(teams[0].players[0].__dict__)
