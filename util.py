@@ -16,7 +16,10 @@ class Player:
         self.name = name
         self.profile_link = "https://www.transfermarkt.com" +  link
         self.stat_link =  self.profile_link.replace("profil", "leistungsdatendetails")
+        self.transfer_link = self.profile_link.replace("profil", "transfers")
+        self.award_link = self.profile_link.replace("profil", "erfolge")
         self.nationalities = nationalities
+        self.awards = []
         
     def add_player_profile(self, full_name, DOB, age, height, foot):
         self.full_name = full_name
@@ -24,6 +27,11 @@ class Player:
         self.age = age 
         self.height = height 
         self.foot = foot
+        
+    def add_player_stats(self, appearances, goals, minutes_played): 
+        self.appearances = appearances
+        self.goals = goals
+        self.minutes_played = minutes_played
     
     def to_dict(self):
         return {
@@ -35,8 +43,12 @@ class Player:
             "full_name": self.full_name,
             "DOB": self.DOB +" (" + self.age + ")",
             "age": self.age,
-            "height": self.height,
-            "foot": self.foot
+            "height": self.height[:-2],
+            "foot": self.foot,
+            "awards": self.awards,
+            "appearances": self.appearances,
+            "goals": self.goals,
+            "minutes_played": self.minutes_played
         }
 
 HEADERS = {
@@ -60,11 +72,7 @@ HEADERS = {
 teams = []
 
 def get_cached_response(url):
-    cached_response = cache.get(url)
-    if cached_response:
-        cache.set(url, cached_response, timeout=300)
-        return cached_response
-    return None
+    return cache.get(url)
 
 def custom_request(url):
     response = get_cached_response(url)
@@ -75,53 +83,6 @@ def custom_request(url):
     if response.status_code == 200:
         cache.set(url, response.text, timeout=3600)
         return response.text
-    
-def get_brief_player_details(html) -> list[Player]:
-    players = []
-    regex = r'<div class="row">(.*?)<div class="row"'
-    
-    try:
-        html = re.findall(regex, html, re.DOTALL)[0]
-    except IndexError:
-        print("No rows found in the HTML.")
-        return players
-    
-    regex = r'<table.*?>(.*)</table>'
-    try:
-        html = re.findall(regex, html, re.DOTALL)[0]
-    except IndexError:
-        print("No table found in the HTML.")
-        return players
-    
-    regex = r'(even|odd)">(.*?)(<tr class="|</tbody>)'
-    html = re.findall(regex, html, re.DOTALL)
-
-    for player in html:
-        regex = r'<td.*?>.*?</td>'
-        temp = re.findall(regex, player[1], re.DOTALL)
-
-        if len(temp) < 7:
-            print("Insufficient data for player.")
-            continue
-
-        title_regex = r'title="(.*?)"'
-        position_regex = r'>(.*?)<'
-        link_regex = r'href="(.*?)"'
-        
-        try:
-            link = "https://www.transfermarkt.com" + re.findall(link_regex, temp[1], re.DOTALL)[0]
-            name = re.findall(title_regex, temp[1], re.DOTALL)[0]
-            club = re.findall(title_regex, temp[2], re.DOTALL) or ['Retired']
-            position = re.findall(position_regex, temp[3], re.DOTALL)[0]
-            nationality = re.findall(title_regex, temp[6], re.DOTALL)
-
-            player_instance = Player(name=name, club=club[0], position=position, link=link, nationality=nationality)
-            players.append(player_instance)
-
-        except (IndexError, ValueError) as e:
-            print(f"Error extracting player data: {e}")
-
-    return players
     
 def get_full_player_details(player: Player):
     content = custom_request(player.profile_link)
@@ -158,6 +119,49 @@ def get_full_player_details(player: Player):
                 #      data_dict[label] = cleaned_value  
                 
     player.add_player_profile(data_dict["full_name"], data_dict["DOB"], data_dict["age"], data_dict["height"], data_dict["foot"])
+
+def get_player_awards(player: Player):
+    html = custom_request(player.award_link)
+    awards = []
+    regex = r'<div class="row">(.*?)<div class="large-4'
+    html = re.findall(regex, html, re.DOTALL)[0]
+    regex = r'<h2 class="content-box-headline">(.*?)</h2>'
+    html = re.findall(regex, html, re.DOTALL)
+    for award in html:
+        temp = award.strip().split('x ')
+        temp = temp[1] + ' (' + temp[0] + ')'
+        awards.append(temp)
+    player.awards = awards
+
+def get_player_stats(player : Player):
+    appearances = 0
+    goals_or_clean_sheet = 0
+    minutes_played = 0
+
+    html = custom_request(player.stat_link)
+    regex = r'<div id="yw1"[^>]*>([\s\S]*?)</table>'
+    html = re.findall(regex, html, re.DOTALL)[0]
+    regex = r'(even|odd)">(.*?)(<tr class="|$)'
+    html = re.findall(regex, html, re.DOTALL)
+    for leage in html :
+        leage = ''.join(leage)
+        premier_leage_regex = r'title="Premier League" [^>]*>(.*?)</tr>'
+        premier_leage = re.findall(premier_leage_regex, leage, re.DOTALL)
+        if premier_leage :
+            td_regex = r'<td.*?>(.*?)</td>'
+            td = re.findall(td_regex, premier_leage[0], re.DOTALL)
+            appearances_regex = r'<a.*?>(.*?)</a>'
+            appearances += int(re.findall(appearances_regex, td[2], re.DOTALL)[0])
+            if player.position == 'goalkeeper':
+                goals_or_clean_sheet += int(td[6])
+                minute = td[7]
+                minutes_played += int(''.join(re.findall(r'\d+', minute)))
+            else :
+                goals_or_clean_sheet += int(td[3])
+                minute = td[6]
+                minutes_played += int(''.join(re.findall(r'\d+', minute)))
+    player.add_player_stats(appearances, goals_or_clean_sheet, minutes_played)
+
 
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
@@ -203,6 +207,7 @@ def init_data():
         get_player_in_team(team)
         for player in team.players: 
             get_full_player_details(player)
+            get_player_awards(player)
             print(player.name)
 
 def get_all_players():
