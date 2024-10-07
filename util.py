@@ -317,7 +317,7 @@ def init_data():
 def get_all_players():
     res = []
     for team in teams: 
-        for player in team.players[:1]:
+        for player in team.players:
             res.append(player.to_dict())
     print(len(res))
     return res
