@@ -228,21 +228,23 @@ def get_awards(player: Player):
 
     print(awards)
 
-driver_path = "/usr/local/bin/chromedriver"  # Replace with the actual path
-service = Service(driver_path)
-driver = webdriver.Chrome(service=service)
+def transfer_link(player: Player):
+    driver_path = "/usr/local/bin/chromedriver"  # Replace with the actual path
+    service = Service(driver_path)
+    driver = webdriver.Chrome(service=service)
 
+    driver.get(player.transfer_link)
+    state = driver.execute_script("return document.readyState")
+    if state == "complete":
+        get_club_history(driver.page_source)
 
-def get_club_history(player: Player):
+def get_club_history(html):
     club_history_list = []
     transfer_year = str(datetime.now().year)
-    driver.get(player.transfer_link)
-    time.sleep(15)
-    html = driver.page_source
-    # print(html_content)
+
     regex = r'<div class="grid tm-player-transfer-history-grid".*?>(.*?)<a class='
     html = re.findall(regex, html, re.DOTALL)
-    # print(html)
+
     for history in html:
         date_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__date">(.*?)<\/div>'
         date = re.findall(date_regex, history, re.DOTALL)[0]
@@ -252,23 +254,17 @@ def get_club_history(player: Player):
         club = re.findall(joined_regex, club, re.DOTALL)[0]
         year = date.split(", ")[1]
         club_history = year + ' - ' + transfer_year + ' ' + club
-        # print(club_history)
         club_history_list.append(club_history)
         transfer_year = year
     
     print(club_history_list)
-
-
-
-
-
 
         
 get_all_teams()
 for team in teams[:1]:
     get_player_in_team(team)
 
-get_club_history(teams[0].players[0])
+transfer_link(teams[0].players[0])
 # get_stats(teams[0].players[0])
 # get_full_player_details(teams[0].players[0])
 # print(teams[0].players[0].__dict__)
