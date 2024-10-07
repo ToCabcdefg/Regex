@@ -17,6 +17,7 @@ import os
 import html
 from urllib.parse import urlparse
 from flask_cors import CORS
+import pandas as pd
 
 app = Flask(__name__)  # Initialize Flask application
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -121,46 +122,19 @@ def search_data_query():
 
 
 @app.route('/api/export', methods=['GET'])
-def export_data():
-    """Export teams and players data to a CSV file and send it as a response."""
-    csv_file_path = 'teams_data.csv'
+def export_csv():
+    data = load_data()
+    players_list = prepare_players_list(data)
     
-    # Define the CSV headers
-    headers = ['Team Name', 'Player Number', 'Player Name', 'Profile Link', 'Stat Link', 'Nationalities', 
-               'Full Name', 'DOB', 'Age', 'Height', 'Foot', 'Awards', 'Appearances', 'Goals', 
-               'Minutes Played', 'Club History', 'Position', 'Image URL']
+    # Create a DataFrame from the list
+    df = pd.DataFrame(players_list)
     
-    # Write data to CSV file
-    with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(headers)  # Write the headers
-        
-        for team in teams_data:
-            for player in team.players:
-                writer.writerow([
-                    team.name,
-                    player.number,
-                    player.name,
-                    player.profile_link,
-                    player.stat_link,
-                    ', '.join(player.nationalities),
-                    player.full_name,
-                    player.DOB,
-                    player.age,
-                    player.height,
-                    player.foot,
-                    ', '.join(player.awards),
-                    player.appearances,
-                    player.goals,
-                    player.minutes_played,
-                    ', '.join(player.club_history),
-                    player.position,
-                    player.image_url
-                ])
-    
-    # Send the CSV file as a response
-    return send_file(csv_file_path, as_attachment=True, download_name='teams_data.csv')
+    # Define the path to save the CSV
+    csv_file_path = 'players_data.csv'
+    df.to_csv(csv_file_path, index=False)
 
+    # Serve the CSV file for download
+    return send_file(csv_file_path, as_attachment=True)
 
 # Load configuration from YAML file
 # Default to development config
@@ -184,6 +158,7 @@ CACHE_FILE = 'response_cache.json'
 if os.path.exists(CACHE_FILE):
     with open(CACHE_FILE, 'r') as cache_file:
         response_cache = json.load(cache_file)
+        
 class Team:
     def __init__(self, name, link):
         self.name = name
@@ -210,7 +185,6 @@ class Team:
             "background": self.background
         }
 
-# Define the Player class
 class Player:
     def __init__(self, number, name, link, nationalities):
         self.number = number
@@ -268,7 +242,6 @@ class Player:
             "image_url": self.image_url,
         }
 
-
 HEADERS = {
     "Host": "www.transfermarkt.com",
     "Sec-Ch-Ua": '"Not;A=Brand";v="24", "Chromium";v="128"',
@@ -290,6 +263,7 @@ HEADERS = {
     # options.add_argument("--disable-dev-shm-usage")
     # options.add_argument("--disable-gpu")  # Disable GPU acceleration
     # options.add_argument("--disable-extensions")  # Disable extensions
+
 def get_player_data(player, file_path='data.json'):
     """Extract player data using Selenium and regular expressions, saving and updating to a file."""
 
@@ -395,12 +369,10 @@ def load_existing_data(file_path):
     except json.JSONDecodeError:
         return {}  # Return empty dict if JSON is not properly formatted
     
-
 def save_data(file_path, data):
     """Save data to a JSON file."""
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
-
 
 def custom_request(url, selenium=False):
     """Custom request with caching"""
@@ -427,6 +399,35 @@ def save_cache():
     with open(CACHE_FILE, 'w') as cache_file:
         json.dump(response_cache, cache_file, indent=4)
 
+def load_data():
+    with open('data.json', 'r') as file:
+        return json.load(file)
+
+def prepare_players_list(data):
+    players_list = []
+    for team in data:
+        team_name = team['name']
+        for player in team['players']:
+            player_data = {
+                'team_name': team_name,
+                'player_number': player['number'],
+                'player_name': player['name'],
+                'nationalities': ' | '.join(player['nationalities']),
+                'full_name': player['full_name'],
+                'DOB': player['DOB'],
+                'age': player['age'],
+                'height': player['height'],
+                'foot': player['foot'],
+                'awards': ' | '.join(player['awards']),
+                'appearances': player['appearances'],
+                'goals': player['goals'],
+                'minutes_played': player['minutes_played'],
+                'club_history': ' | '.join(player['club_history']),
+                'position': player['position'],
+                'image_url': player['image_url']
+            }
+            players_list.append(player_data)
+    return players_list
 
 def get_player_details(player: Player):
     content = custom_request(player.profile_link)
@@ -467,7 +468,6 @@ def get_player_details(player: Player):
     player.add_player_profile(data_dict["full_name"], data_dict["DOB"],
                               data_dict["age"], data_dict["height"], data_dict["foot"])
 
-
 def get_player_awards(player: Player):
     html = custom_request(player.award_link)
     awards = []
@@ -480,7 +480,6 @@ def get_player_awards(player: Player):
         temp = temp[1] + ' (' + temp[0] + ')'
         awards.append(temp)
     player.awards = awards
-
 
 def get_player_stats(player : Player):
     appearances = 0
@@ -527,6 +526,7 @@ def get_player_stats(player : Player):
                 except: 
                     minutes_played += 0
     player.add_player_stats(appearances, goals_or_clean_sheet, minutes_played)
+    
 def get_player_club(player: Player):
     club_history_list = []
     transfer_year = str(datetime.now().year)
@@ -545,7 +545,6 @@ def get_player_club(player: Player):
         club_history_list.append(club_history)
         transfer_year = year
     player.club_history = club_history_list
-
 
 def get_player_in_team(team: Team):
     html = custom_request(team.link)
@@ -568,7 +567,6 @@ def get_player_in_team(team: Team):
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
         # print(number, name, link, nationalities)
         team.players.append(Player(number, name, link, nationalities))
-
 
 def get_transfer_content(url, max_retries=3, wait_time=5):
     options = Options()
@@ -622,7 +620,6 @@ def get_transfer_content(url, max_retries=3, wait_time=5):
     finally:
         driver.quit()
 
-
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
     html = custom_request(url)
@@ -663,8 +660,8 @@ def save_teams_to_data(file_path='data.json'):
             get_player_details(player)  
             get_player_awards(player)    
             get_player_club(player)      
-            get_player_data(player)      
             get_player_stats(player)      
+            get_player_data(player)      
             
             if old_player_data is None:
                 old_player_data = player.to_dict()
@@ -683,6 +680,52 @@ def save_teams_to_data(file_path='data.json'):
     # Final save to ensure all team data is consistent
     save_data(file_path, list(old_data_dict.values()))
 
+def load_teams_from_json(file_path='data.json'):
+    teams = []
+    
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+        for team_data in data:
+            team = Team(name=team_data['name'], link=team_data['link'])
+            
+            for player_data in team_data['players']:
+                player = Player(
+                    number=player_data['number'],
+                    name=player_data['name'],
+                    link=player_data['profile_link'],
+                    nationalities=player_data['nationalities']
+                )
+                
+                # Add optional player profile and stats
+                player.add_player_profile(
+                    full_name=player_data['full_name'],
+                    DOB=player_data['DOB'],
+                    age=player_data['age'],
+                    height=player_data['height'],
+                    foot=player_data['foot']
+                )
+                
+                player.add_player_stats(
+                    appearances=player_data['appearances'],
+                    goals=player_data['goals'],
+                    minutes_played=player_data['minutes_played']
+                )
+                
+                # Add club history and awards
+                player.club_history = player_data['club_history']
+                player.awards = player_data['awards']
+                player.position = player_data['position']
+                player.image_url = player_data['image_url']
+
+                # Append player to the team
+                team.players.append(player)
+            
+            # Append the team to the teams list
+            teams.append(team)
+
+    return teams
+
 if __name__ == '__main__':
     save_teams_to_data()  # Load teams data when starting the app
+    teams_data = load_teams_from_json()
     app.run(host='0.0.0.0', port=5555)  # Start the Flask application
