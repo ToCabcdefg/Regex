@@ -642,30 +642,46 @@ def get_all_teams():
         teams_data.append(Team(name, link))
 
 def save_teams_to_data(file_path='data.json'):
-    """Function to save all teams data and their players to a JSON file."""
-    global teams_data  # Ensure we're using the global teams list
-    get_all_teams()  # Fetch teams (if not already fetched)
+    """Save all teams data and their players to a JSON file."""
+    global teams_data  # Use the global teams list
+    get_all_teams()  # Fetch teams if not already fetched
+    
+    existing_data = load_existing_data(file_path) or []  # Load existing data or initialize as empty
+    old_data_dict = {team["name"]: team for team in existing_data}  # Fast lookup for old team data
+
     for team in tqdm(teams_data, desc='Processing Teams', unit='team'):
         get_player_in_team(team)  # Populate the team's players
-    
-    existing_data = load_existing_data(file_path)
-    if not existing_data:
-        save_data(file_path, [team.to_dict() for team in teams_data])
+        old_team_data = old_data_dict.get(team.name, {"players": []})  # Get old team data if exists
 
-
-    for team in tqdm(teams_data, desc='Processing Teams', unit='team'):
-        # Iterate through each player in the team's players list with a progress bar
         for player in tqdm(team.players, desc=f'Processing Players in {team.name}', unit='player', leave=False):
-            # print(player.to_dict())
-            get_player_details(player)  # Get player's general details
-            get_player_awards(player)   # Get player's awards (if any)
-            get_player_club(player)     # Get player's club history (if needed)
-            get_player_data(player)     # Get player's image URL and position using Selenium
-            get_player_stats(player)
-            # Save after updating each player to avoid losing data in case of failure
-            save_data(file_path, [team.to_dict() for team in teams_data])
+            old_player_data = next((old_player for old_player in old_team_data["players"] if old_player["name"] == player.name), None)
+            
+            if old_player_data and len(old_player_data.get("image_url", "")) > 0:
+                continue  # Skip if image URL exists
+            
+            # Get player details and update old player data
+            get_player_details(player)  
+            get_player_awards(player)    
+            get_player_club(player)      
+            get_player_data(player)      
+            get_player_stats(player)      
+            
+            if old_player_data is None:
+                old_player_data = player.to_dict()
+                old_team_data["players"].append(old_player_data)
+            else:
+                old_player_data.update(player.to_dict())
 
-        print(f"Saved data for team: {team.name}")
+            # Save updated player data for the team
+            save_data(file_path, existing_data)  # Save data after each player's update
+            
+            print(f"Saved updated data for player: {player.name} in team: {team.name}")
+
+        # Update the old data dictionary for the current team
+        old_data_dict[team.name] = old_team_data
+
+    # Final save to ensure all team data is consistent
+    save_data(file_path, list(old_data_dict.values()))
 
 if __name__ == '__main__':
     save_teams_to_data()  # Load teams data when starting the app
