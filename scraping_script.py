@@ -22,6 +22,78 @@ app = Flask(__name__)  # Initialize Flask application
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
+
+@app.route('/api/all', methods=['GET'])
+def get_all_data():
+    """Return all teams and their players data."""
+    return jsonify(teams_data)
+
+@app.route('/api/team/<team_name>', methods=['GET'])
+def get_team_data(team_name):
+    """Return data for a specific team."""
+    team = next((team for team in teams_data if team.name.lower() == team_name.lower()), None)
+    return jsonify(team.to_dict() if team else {})  # Return team data if found, else empty dict
+
+@app.route('/api/player/<player_name>', methods=['GET'])
+def get_player_data(player_name):
+    """Return data for a specific player."""
+    player = next((player for team in teams_data for player in team.players if player.name.lower() == player_name.lower()), None)
+    return jsonify(player.to_dict() if player else {})
+
+@app.route('/api/search/<search_query>', methods=['GET'])
+def search_data(search_query):
+    """Search for teams or players based on a search query."""
+    results = {
+        "teams": [team.to_dict() for team in teams_data if search_query.lower() in team.name.lower()],
+        "players": [player.to_dict() for team in teams_data for player in team.players if search_query.lower() in player.name.lower()]
+    }
+    return jsonify(results)
+
+@app.route('/api/search', methods=['GET'])
+def search_data_query():
+    return get_all_data()
+
+@app.route('/api/export', methods=['GET'])
+def export_data():
+    """Export teams and players data to a CSV file and send it as a response."""
+    csv_file_path = 'teams_data.csv'
+    
+    # Define the CSV headers
+    headers = ['Team Name', 'Player Number', 'Player Name', 'Profile Link', 'Stat Link', 'Nationalities', 'Full Name', 'DOB', 'Age', 'Height', 'Foot', 'Awards', 'Appearances', 'Goals', 'Minutes Played', 'Club History', 'Position', 'Image URL']
+    
+    # Write data to CSV file
+    with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)  # Write the headers
+        
+        for team in teams_data:
+            for player in team.players:
+                writer.writerow([
+                    team.name,
+                    player.number,
+                    player.name,
+                    player.profile_link,
+                    player.stat_link,
+                    ', '.join(player.nationalities),
+                    player.full_name,
+                    player.DOB,
+                    player.age,
+                    player.height,
+                    player.foot,
+                    ', '.join(player.awards),
+                    player.appearances,
+                    player.goals,
+                    player.minutes_played,
+                    ', '.join(player.club_history),
+                    player.position,
+                    player.image_url
+                ])
+    
+    # Send the CSV file as a response
+    return send_file(csv_file_path, as_attachment=True, attachment_filename='teams_data.csv')
+
+
+
 # Load configuration from YAML file
 # Default to development config
 config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')
