@@ -1,7 +1,14 @@
 from   datetime import datetime
 import re
+import time
 import requests
 from cache_config import cache
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 class Team: 
     def __init__(self, name, link):
@@ -20,6 +27,7 @@ class Player:
         self.award_link = self.profile_link.replace("profil", "erfolge")
         self.nationalities = nationalities
         self.awards = []
+        self.club_history = []
         
     def add_player_profile(self, full_name, DOB, age, height, foot):
         self.full_name = full_name
@@ -48,7 +56,8 @@ class Player:
             "awards": self.awards,
             "appearances": self.appearances,
             "goals": self.goals,
-            "minutes_played": self.minutes_played
+            "minutes_played": self.minutes_played,
+            "club_history": self.club_history
         }
 
 HEADERS = {
@@ -74,17 +83,66 @@ teams = []
 def get_cached_response(url):
     return cache.get(url)
 
-def custom_request(url):
+def get_transfer_content(url): 
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--log-level=3")
+    chrome_options.add_argument("--silent")
+    
+    
+    driver_path = "C:\\chromedriver-win64\\chromedriver.exe"
+    service = Service(driver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    try:
+        driver.get(url)
+
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_all_elements_located((By.TAG_NAME, "iframe"))
+        )
+
+        driver.switch_to.frame(driver.find_elements(By.TAG_NAME, "iframe")[1])
+
+        accept_button = WebDriverWait(driver, 3).until(
+            EC.presence_of_element_located((By.XPATH, "//button[@title='Accept & continue']"))
+        )
+
+        accept_button.click()
+
+        driver.switch_to.default_content()
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'tm-transfer-history'))
+        )
+        transfer_history_element = driver.find_element(By.CLASS_NAME, 'tm-transfer-history')
+        driver.execute_script("arguments[0].scrollIntoView();", transfer_history_element)
+        
+        WebDriverWait(driver, 30).until(
+            EC.visibility_of_element_located((By.CLASS_NAME, 'tm-player-transfer-history-grid'))
+        )
+
+        return driver.page_source
+
+    finally:
+        driver.quit()
+        
+def custom_request(url, selenium=False):
     response = get_cached_response(url)
     if response is not None:
         return response
 
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code == 200:
-        cache.set(url, response.text, timeout=3600)
-        return response.text
+    if selenium:
+        content = get_transfer_content(url)
+        cache.set(url, content, timeout=36000)
+        return content
+    else:
+        response = requests.get(url, headers=HEADERS)
+        if response.status_code == 200:
+            cache.set(url, response.text, timeout=36000)
+            return response.text
     
-def get_full_player_details(player: Player):
+def get_player_details(player: Player):
     content = custom_request(player.profile_link)
     pattern = r'<div class="info-table[^>]*">(.*?)<\/div>'
     contents = re.findall(pattern, content, re.DOTALL)[0]
@@ -162,6 +220,26 @@ def get_player_stats(player : Player):
                 minutes_played += int(''.join(re.findall(r'\d+', minute)))
     player.add_player_stats(appearances, goals_or_clean_sheet, minutes_played)
 
+def get_player_club(player: Player):
+    club_history_list = []
+    transfer_year = str(datetime.now().year)
+    regex = r'<div class="grid tm-player-transfer-history-grid".*?>(.*?)<a class='
+    html = custom_request(player.transfer_link, True)
+    html = re.findall(regex, html, re.DOTALL)
+    for history in html:
+        date_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__date">(.*?)<\/div>'
+        date = re.findall(date_regex, history, re.DOTALL)[0]
+        club_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__new-club">(.*?)<\/div>'
+        club = re.findall(club_regex, history, re.DOTALL)[0]
+        joined_regex = r'<*?class="tm-player-transfer-history-grid__club-link">(.*?)</(a|span)>'
+        club = re.findall(joined_regex, club, re.DOTALL)[0][0]
+        year = date.split(", ")[1]
+        club_history = year + ' - ' + transfer_year + ' ' + club
+        club_history_list.append(club_history)
+        transfer_year = year
+    if player.name == "Oleksandr Zinchenko":
+        print(club_history_list)
+    player.club_history = club_history_list
 
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
@@ -206,8 +284,9 @@ def init_data():
         team.players = []
         get_player_in_team(team)
         for player in team.players: 
-            get_full_player_details(player)
+            get_player_details(player)
             get_player_awards(player)
+            get_player_club(player)
             print(player.name)
 
 def get_all_players():
