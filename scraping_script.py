@@ -180,7 +180,7 @@ def get_player_data(player, file_path='data.json'):
     for existing_player in team_data["players"]:
         if existing_player["name"] == player.name:
             # Check if the image URL and position are already set
-            if 'image_url' in existing_player and existing_player['image_url'] != "" and 'position' in existing_player and existing_player['position'] != "":
+            if existing_player['image_url'] != "" and  existing_player['position'] != "":
                 print(f"Player {player.name} already has image URL and position. Skipping scraping.")
                 player.image_url = existing_player['image_url']
                 player.position = existing_player['position']
@@ -505,16 +505,18 @@ def save_teams_to_data(file_path='data.json'):
     """Function to save all teams data and their players to a JSON file."""
     global teams_data  # Ensure we're using the global teams list
     get_all_teams()  # Fetch teams (if not already fetched)
-
-    # Iterate through each team in the teams list with a progress bar
     for team in tqdm(teams_data, desc='Processing Teams', unit='team'):
         get_player_in_team(team)  # Populate the team's players
-
-        # Save team data with updated players before fetching additional details
+    
+    existing_data = load_existing_data(file_path)
+    if not existing_data:
         save_data(file_path, [team.to_dict() for team in teams_data])
 
+
+    for team in tqdm(teams_data, desc='Processing Teams', unit='team'):
         # Iterate through each player in the team's players list with a progress bar
         for player in tqdm(team.players, desc=f'Processing Players in {team.name}', unit='player', leave=False):
+            # print(player.to_dict())
             get_player_details(player)  # Get player's general details
             get_player_awards(player)   # Get player's awards (if any)
             get_player_club(player)     # Get player's club history (if needed)
