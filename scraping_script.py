@@ -1,3 +1,4 @@
+import time
 import requests
 import re
 import csv
@@ -21,8 +22,8 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 # Load configuration from YAML file
-# config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')  # Default to development config
-config_file = os.getenv('CONFIG_FILE', 'config_docker.yaml')  # For docker config
+config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')  # Default to development config
+# config_file = os.getenv('CONFIG_FILE', 'config_docker.yaml')  # For docker config
 with open(config_file, 'r') as config_file:
     config = yaml.safe_load(config_file)
 
@@ -261,11 +262,11 @@ def get_player_data(teams, domain, file_path='team_data.json'):
     options = Options()
     options.add_argument("--headless")  # Ensure GUI is off for headless mode
     # Optional: For Docker environment
-    options.binary_location = "/usr/bin/chromium"  # Path for Docker environment
-    options.add_argument("--no-sandbox")  # Bypass OS security model for Docker
-    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
-    options.add_argument("--disable-gpu")  # Disable GPU acceleration
-    options.add_argument("--disable-extensions")  # Disable extensions
+    # options.binary_location = "/usr/bin/chromium"  # Path for Docker environment
+    # options.add_argument("--no-sandbox")  # Bypass OS security model for Docker
+    # options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    # options.add_argument("--disable-gpu")  # Disable GPU acceleration
+    # options.add_argument("--disable-extensions")  # Disable extensions
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
@@ -329,7 +330,8 @@ def get_player_data(teams, domain, file_path='team_data.json'):
                         # Fetch player details using Selenium
                         try:
                             driver.get('https://www.premierleague.com/players')
-
+                            
+                            time.sleep(5)
                             # Wait for the search input to be clickable
                             search_input = WebDriverWait(driver, 20).until(
                                 EC.element_to_be_clickable((By.ID, "search-input"))
@@ -340,6 +342,8 @@ def get_player_data(teams, domain, file_path='team_data.json'):
                             search_input.send_keys(player_name)
                             search_input.send_keys(Keys.RETURN)
 
+                            time.sleep(5)
+
                             # Wait for search results to load
                             WebDriverWait(driver, 20).until(
                                 EC.visibility_of_element_located((By.CLASS_NAME, "player"))
@@ -349,14 +353,14 @@ def get_player_data(teams, domain, file_path='team_data.json'):
                             html_content = driver.page_source
 
                             # Extract image URL and position
-                            image_match = re.search(
-                                r'<img[^>]*class="img player__name-image"[^>]*src="([^"]*)"',
-                                html_content
-                            )
-                            position_match = re.search(
-                                r'<td[^>]*class="u-hide-mobile-lg player__position"[^>]*>(.*?)<\/td>',
-                                html_content
-                            )
+                            # Define regex patterns to find the image URL and position
+                            pattern_image = r'<img[^>]*class="img player__name-image"[^>]*src="([^"]*)"'
+                            pattern_position = r'<td[^>]*class="u-hide-mobile-lg player__position"[^>]*>(.*?)<\/td>'
+
+                            # Search for image URL and position in the HTML content
+                            image_match = re.search(pattern_image, html_content)
+                            position_match = re.search(pattern_position, html_content)
+
 
                             image_url = image_match.group(1).replace("40x40", "250x250") if image_match else "N/A"
                             position = position_match.group(1).strip() if position_match else "N/A"
