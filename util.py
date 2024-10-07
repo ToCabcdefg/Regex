@@ -18,7 +18,7 @@ class Team:
         self.logo = ""
         self.background = ""
 class Player:
-    def __init__(self, number, name, link, nationalities):
+    def __init__(self, number, name, link, nationalities, position):
         self.number = number
         self.name = name
         self.profile_link = "https://www.transfermarkt.com" +  link
@@ -28,6 +28,7 @@ class Player:
         self.nationalities = nationalities
         self.awards = []
         self.club_history = []
+        self.position = position 
         
     def add_player_profile(self, full_name, DOB, age, height, foot):
         self.full_name = full_name
@@ -215,15 +216,32 @@ def get_player_stats(player : Player):
             td_regex = r'<td.*?>(.*?)</td>'
             td = re.findall(td_regex, premier_leage[0], re.DOTALL)
             appearances_regex = r'<a.*?>(.*?)</a>'
-            appearances += int(re.findall(appearances_regex, td[2], re.DOTALL)[0])
-            if player.position == 'goalkeeper':
-                goals_or_clean_sheet += int(td[6])
-                minute = td[7]
-                minutes_played += int(''.join(re.findall(r'\d+', minute)))
+            try:
+                appearances += int(re.findall(appearances_regex, td[2], re.DOTALL)[0])
+            except: 
+                appearances += 0
+            if player.position.lower() == 'goalkeeper':
+                try:
+                    goals_or_clean_sheet += int(td[6])
+                except: 
+                    goals_or_clean_sheet += 0
+                    
+                try:
+                    minute = td[7]
+                    minutes_played += int(''.join(re.findall(r'\d+', minute)))
+                except: 
+                    minutes_played += 0
             else :
-                goals_or_clean_sheet += int(td[3])
-                minute = td[6]
-                minutes_played += int(''.join(re.findall(r'\d+', minute)))
+                try:
+                    goals_or_clean_sheet += int(td[3])
+                except: 
+                    goals_or_clean_sheet += 0
+                    
+                try:
+                    minute = td[6]
+                    minutes_played += int(''.join(re.findall(r'\d+', minute)))
+                except: 
+                    minutes_played += 0
     player.add_player_stats(appearances, goals_or_clean_sheet, minutes_played)
 
 def get_player_club(player: Player):
@@ -274,14 +292,16 @@ def get_player_in_team(team: Team):
     nationality_regex = r'alt="(.*?)"'
     td_regex = r'<td.*?>(.*?)</td>'
     number_regex = r'rn_nummer>(.*?)</div>'
+    position_regex = r'([a-zA-Z]+)'
     for player_html in players_html:
         td = re.findall(td_regex, player_html[1], re.DOTALL)
         number = re.findall(number_regex, td[0], re.DOTALL)[0]
         name = re.findall(title_regex, td[1], re.DOTALL)[-1]
         nationalities = re.findall(nationality_regex, td[5], re.DOTALL)
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
-        team.players.append(Player(number, name, link, nationalities))
-
+        position = re.findall(position_regex, td[3], re.DOTALL)[0]
+        team.players.append(Player(number, name, link, nationalities, position))
+        
 def init_data():
     get_all_teams()
     for team in teams:
@@ -290,13 +310,14 @@ def init_data():
         for player in team.players: 
             get_player_details(player)
             get_player_awards(player)
+            get_player_stats(player)
             get_player_club(player)
             print(player.name)
 
 def get_all_players():
     res = []
     for team in teams: 
-        for player in team.players:
+        for player in team.players[:1]:
             res.append(player.to_dict())
     print(len(res))
     return res
