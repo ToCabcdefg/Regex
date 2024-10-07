@@ -1,6 +1,7 @@
 from   datetime import datetime
 import re
 import requests
+from cache_config import cache
 
 class Team: 
     def __init__(self, name, link):
@@ -23,6 +24,20 @@ class Player:
         self.age = age 
         self.height = height 
         self.foot = foot
+    
+    def to_dict(self):
+        return {
+            "number": self.number,
+            "name": self.name,
+            "profile_link": self.profile_link,
+            "stat_link": self.stat_link,
+            "nationalities": self.nationalities,
+            "full_name": self.full_name,
+            "DOB": self.DOB +" (" + self.age + ")",
+            "age": self.age,
+            "height": self.height,
+            "foot": self.foot
+        }
 
 HEADERS = {
     "Host": "www.transfermarkt.com",
@@ -44,23 +59,22 @@ HEADERS = {
 
 teams = []
 
-def get_max_pagination(html) -> int: 
-    max_pagination = 1
-    regex = r'<div class="row">(.*?)<div class="row"'
+def get_cached_response(url):
+    cached_response = cache.get(url)
+    if cached_response:
+        cache.set(url, cached_response, timeout=300)
+        return cached_response
+    return None
 
-    try:
-        html = re.findall(regex, html, re.DOTALL)[0]
-    except IndexError:
-        print("No rows found in the HTML.")
-        return max_pagination
-    regex = r'last-page.*?Spieler_page=(\d+)'
-    try:
-        html = re.findall(regex, html, re.DOTALL)[0]
-        print(int(html))
-        return int(html)
-    except IndexError:
-        print("No rows found in the HTML.")
-        return max_pagination
+def custom_request(url):
+    response = get_cached_response(url)
+    if response is not None:
+        return response
+
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code == 200:
+        cache.set(url, response.text, timeout=3600)
+        return response.text
     
 def get_brief_player_details(html) -> list[Player]:
     players = []
@@ -110,46 +124,44 @@ def get_brief_player_details(html) -> list[Player]:
     return players
     
 def get_full_player_details(player: Player):
-    response = requests.get(player.profile_link, headers=HEADERS)
-    if response.status_code == 200:
-        content = response.text
-        pattern = r'<div class="info-table[^>]*">(.*?)<\/div>'
-        contents = re.findall(pattern, content, re.DOTALL)[0]
-        span_pattern = r'<span[^>]*class="info-table__content[^>]*>(.*?)<\/span>'
-        contents = re.findall(span_pattern, content, re.DOTALL)
-        data_dict = {}
-        for i in range(0, len(contents), 2):
-            label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
-            value = contents[i + 1] if i + 1 < len(contents) else None
-            if value:
-                    cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
-                    cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
-                    cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
-                    if label == "Date of birth/Age:":
-                        split_data = cleaned_value.split('(')
-                        date_part = split_data[0].strip()
-                        age_part = split_data[1].strip(")")
-                        date_object = datetime.strptime(date_part, '%b %d, %Y')
-                        formatted_date = date_object.strftime('%d/%m/%Y')
-                        cleaned_value = f"{formatted_date} {age_part}"
-                        data_dict["DOB"] = formatted_date
-                        data_dict["age"] = age_part  
-                    elif label == "Height:":
-                        cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
-                        data_dict["height"] = cleaned_value  
-                    elif label in ["Full name:","Name in home country:"]:
-                        data_dict["full_name"] = cleaned_value  
-                    elif  label == "Foot:":
-                        data_dict["foot"] = cleaned_value  
-                    # if label and cleaned_value:
-                    #      data_dict[label] = cleaned_value  
-                    
-        player.add_player_profile(data_dict["full_name"], data_dict["DOB"], data_dict["age"], data_dict["height"], data_dict["foot"])
+    content = custom_request(player.profile_link)
+    pattern = r'<div class="info-table[^>]*">(.*?)<\/div>'
+    contents = re.findall(pattern, content, re.DOTALL)[0]
+    span_pattern = r'<span[^>]*class="info-table__content[^>]*>(.*?)<\/span>'
+    contents = re.findall(span_pattern, content, re.DOTALL)
+    data_dict = {"full_name": player.name, "DOB": "14/09/1995", "age": "29", "height": "180cm", "foot": "right"}
+    for i in range(0, len(contents), 2):
+        label = re.sub(r'<.*?>', '', contents[i]).replace('&nbsp;', '').strip()
+        value = contents[i + 1] if i + 1 < len(contents) else None
+        if value:
+                cleaned_value = re.sub(r'<.*?>|&nbsp;|\n', '', value).strip()  
+                cleaned_value = re.sub(r'<img[^>]*>', '', cleaned_value).strip()
+                cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+                if label == "Date of birth/Age:":
+                    split_data = cleaned_value.split('(')
+                    date_part = split_data[0].strip()
+                    age_part = split_data[1].strip(")")
+                    date_object = datetime.strptime(date_part, '%b %d, %Y')
+                    formatted_date = date_object.strftime('%d/%m/%Y')
+                    cleaned_value = f"{formatted_date} {age_part}"
+                    data_dict["DOB"] = formatted_date
+                    data_dict["age"] = age_part  
+                elif label == "Height:":
+                    cleaned_value = cleaned_value.replace('m', 'cm').replace(',', '').strip()
+                    data_dict["height"] = cleaned_value  
+                elif label in ["Full name:","Name in home country:"]:
+                    data_dict["full_name"] = cleaned_value  
+                elif  label == "Foot:":
+                    data_dict["foot"] = cleaned_value  
+
+                # if label and cleaned_value:
+                #      data_dict[label] = cleaned_value  
+                
+    player.add_player_profile(data_dict["full_name"], data_dict["DOB"], data_dict["age"], data_dict["height"], data_dict["foot"])
 
 def get_all_teams():
     url = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
-    response = requests.get(url, headers=HEADERS)
-    html = response.text
+    html = custom_request(url)
     regex = r'<div id="yw1".*?>(.*?)</div>\s*?<div class="table-footer">'
     html = re.findall(regex, html, re.DOTALL)[0]
     regex = r'(even|odd)">(.*?)(<tr class="|</tbody>)'
@@ -164,8 +176,7 @@ def get_all_teams():
         teams.append(Team(name, link))
 
 def get_player_in_team(team: Team):
-    response = requests.get(team.link, headers=HEADERS)
-    html = response.text
+    html = custom_request(team.link)
     regex = r'<div id="yw1".*?>(.*?)</div>\s*?<a title="'
     html = re.findall(regex, html, re.DOTALL)[0]
     regex = r'<tbody*?>(.*?)</tbody>'
@@ -184,9 +195,20 @@ def get_player_in_team(team: Team):
         nationalities = re.findall(nationality_regex, td[5], re.DOTALL)
         link = re.findall(link_regex, td[2], re.DOTALL)[0]
         team.players.append(Player(number, name, link, nationalities))
-        
-get_all_teams()
-for team in teams[:1]:
-    get_player_in_team(team)
-get_full_player_details(teams[0].players[0])
-print(teams[0].players[0].__dict__)
+
+def init_data():
+    get_all_teams()
+    for team in teams:
+        team.players = []
+        get_player_in_team(team)
+        for player in team.players: 
+            get_full_player_details(player)
+            print(player.name)
+
+def get_all_players():
+    res = []
+    for team in teams: 
+        for player in team.players:
+            res.append(player.to_dict())
+    print(len(res))
+    return res
