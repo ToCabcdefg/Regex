@@ -1,2 +1,3 @@
-app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'RedisCache', 'CACHE_REDIS_URL': "redis://localhost:6379/0"})
+date_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__date">(.*?)<\/div>'
+    # date = re.findall(date_regex, html, re.DOTALL)
+    # print(date)

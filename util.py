@@ -1,6 +1,10 @@
 from   datetime import datetime
 import re
 import requests
+import time
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
 
 class Team: 
     def __init__(self, name, link):
@@ -16,6 +20,7 @@ class Player:
         self.profile_link = "https://www.transfermarkt.com" +  link
         self.stat_link =  self.profile_link.replace("profil", "leistungsdatendetails")
         self.award_link = self.profile_link.replace("profil", "erfolge")
+        self.transfer_link = self.profile_link.replace("profil", "transfers")
         self.nationalities = nationalities
         
     def add_player_profile(self, full_name, DOB, age, height, foot):
@@ -36,6 +41,24 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, v=537.36)",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-User": "?1",
+    "Sec-Fetch-Dest": "document",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Priority": "u=0, i",
+    "Connection": "keep-alive"
+}
+
+TRANSFER_HEADERS = {
+    "Host": "www.footballtransfers.com",
+    "Sec-Ch-Ua": '"Not;A=Brand";v="24", "Chromium";v="128"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Accept-Language": "en-US,en;q=0.9",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.6613.120 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,/;q=0.8,application/signed-exchange;v=b3;q=0.7",
     "Sec-Fetch-Site": "none",
     "Sec-Fetch-Mode": "navigate",
     "Sec-Fetch-User": "?1",
@@ -203,13 +226,49 @@ def get_awards(player: Player):
             temp = temp[1] + ' (' + temp[0] + ')'
             awards.append(temp)
 
-    # print(awards)
-       
+    print(awards)
+
+driver_path = "/usr/local/bin/chromedriver"  # Replace with the actual path
+service = Service(driver_path)
+driver = webdriver.Chrome(service=service)
+
+
+def get_club_history(player: Player):
+    club_history_list = []
+    transfer_year = str(datetime.now().year)
+    driver.get(player.transfer_link)
+    time.sleep(15)
+    html = driver.page_source
+    # print(html_content)
+    regex = r'<div class="grid tm-player-transfer-history-grid".*?>(.*?)<a class='
+    html = re.findall(regex, html, re.DOTALL)
+    # print(html)
+    for history in html:
+        date_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__date">(.*?)<\/div>'
+        date = re.findall(date_regex, history, re.DOTALL)[0]
+        club_regex = r'<div class="grid__cell grid__cell--center tm-player-transfer-history-grid__new-club">(.*?)<\/div>'
+        club = re.findall(club_regex, history, re.DOTALL)[0]
+        joined_regex = r'<a.*?class="tm-player-transfer-history-grid__club-link">(.*?)<\/a>'
+        club = re.findall(joined_regex, club, re.DOTALL)[0]
+        year = date.split(", ")[1]
+        club_history = year + ' - ' + transfer_year + ' ' + club
+        # print(club_history)
+        club_history_list.append(club_history)
+        transfer_year = year
+    
+    print(club_history_list)
+
+
+
+
+
+
+        
 get_all_teams()
 for team in teams[:1]:
     get_player_in_team(team)
 
-get_awards(teams[0].players[0])
+get_club_history(teams[0].players[0])
 # get_stats(teams[0].players[0])
 # get_full_player_details(teams[0].players[0])
 # print(teams[0].players[0].__dict__)
