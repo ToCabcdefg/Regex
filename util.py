@@ -103,16 +103,14 @@ def get_transfer_content(url, max_retries=3, wait_time=5):
                 WebDriverWait(driver, 30).until(
                     EC.presence_of_all_elements_located((By.TAG_NAME, "iframe"))
                 )
+
+                driver.switch_to.frame(driver.find_elements(By.TAG_NAME, "iframe")[1])
                 break
             except Exception:
                 print(f"Attempt {attempt + 1} failed. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
 
-        if not driver.find_elements(By.TAG_NAME, "iframe"):
-            print("No iframes found after retries.")
-            return None
 
-        driver.switch_to.frame(driver.find_elements(By.TAG_NAME, "iframe")[1])
 
         accept_button = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.XPATH, "//button[@title='Accept & continue']"))
