@@ -83,14 +83,13 @@ teams = []
 def get_cached_response(url):
     return cache.get(url)
 
-def get_transfer_content(url): 
+def get_transfer_content(url, max_retries=3, wait_time=5):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--log-level=3")
     chrome_options.add_argument("--silent")
-    
     
     driver_path = "C:\\chromedriver-win64\\chromedriver.exe"
     service = Service(driver_path)
@@ -99,16 +98,25 @@ def get_transfer_content(url):
     try:
         driver.get(url)
 
-        WebDriverWait(driver, 30).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "iframe"))
-        )
+        for attempt in range(max_retries):
+            try:
+                WebDriverWait(driver, 30).until(
+                    EC.presence_of_all_elements_located((By.TAG_NAME, "iframe"))
+                )
+                break
+            except Exception:
+                print(f"Attempt {attempt + 1} failed. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+
+        if not driver.find_elements(By.TAG_NAME, "iframe"):
+            print("No iframes found after retries.")
+            return None
 
         driver.switch_to.frame(driver.find_elements(By.TAG_NAME, "iframe")[1])
 
         accept_button = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.XPATH, "//button[@title='Accept & continue']"))
         )
-
         accept_button.click()
 
         driver.switch_to.default_content()
@@ -117,7 +125,7 @@ def get_transfer_content(url):
         )
         transfer_history_element = driver.find_element(By.CLASS_NAME, 'tm-transfer-history')
         driver.execute_script("arguments[0].scrollIntoView();", transfer_history_element)
-        
+
         WebDriverWait(driver, 30).until(
             EC.visibility_of_element_located((By.CLASS_NAME, 'tm-player-transfer-history-grid'))
         )
