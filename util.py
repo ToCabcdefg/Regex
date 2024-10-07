@@ -237,8 +237,6 @@ def get_player_club(player: Player):
         club_history = year + ' - ' + transfer_year + ' ' + club
         club_history_list.append(club_history)
         transfer_year = year
-    if player.name == "Oleksandr Zinchenko":
-        print(club_history_list)
     player.club_history = club_history_list
 
 def get_all_teams():
