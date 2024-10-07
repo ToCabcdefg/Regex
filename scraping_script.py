@@ -127,6 +127,8 @@ class Player:
             "position": self.position,
             "image_url": self.image_url,
         }
+
+
 HEADERS = {
     "Host": "www.transfermarkt.com",
     "Sec-Ch-Ua": '"Not;A=Brand";v="24", "Chromium";v="128"',
@@ -429,13 +431,12 @@ def get_player_in_team(team: Team):
 
 
 def get_transfer_content(url, max_retries=3, wait_time=5):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-extensions")
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-extensions")
 
-    driver_path = "C:\\Program Files\\ChromeDriver\\chromedriver.exe"
-    service = Service(driver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    service = Service(executable_path=chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=options)
 
     try:
         driver.get(url)
