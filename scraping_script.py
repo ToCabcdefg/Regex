@@ -26,26 +26,92 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 @app.route('/api/all', methods=['GET'])
 def get_all_data():
     """Return all teams and their players data."""
-    return jsonify(teams_data)
+    return jsonify([team.to_dict() for team in teams_data])
 
-@app.route('/api/team/<team_name>', methods=['GET'])
+@app.route('/api/players', methods=['GET'])
+def get_all_players():
+    """Return all players data."""
+    players = [
+        {
+            **player.to_dict(),  # Convert player to dict
+            "club": {            # Add club as an object
+                "club_name": team.name,
+                "club_logo": team.logo
+            }
+        }
+        for team in teams_data
+        for player in team.players
+    ]
+    return jsonify(players)
+
+
+@app.route('/api/club/<team_name>', methods=['GET'])
 def get_team_data(team_name):
-    """Return data for a specific team."""
+    """Return data for a specific team along with its players."""
     team = next((team for team in teams_data if team.name.lower() == team_name.lower()), None)
-    return jsonify(team.to_dict() if team else {})  # Return team data if found, else empty dict
+
+    if team:
+        # Prepare team data
+        team_data = team.to_dict()
+        
+        # Add players data
+        team_data['players'] = [
+            {
+                **player.to_dict(),  # Convert player to dict
+                "club": {            # Add club as an object
+                    "club_name": team.name,
+                    "club_logo": team.logo
+                }
+            } for player in team.players  # Assuming team.players gives you the list of players
+        ]
+        
+        return jsonify(team_data)  # Return team data with players
+    else:
+        return jsonify({})  # Return empty dict if team not found
+
 
 @app.route('/api/player/<player_name>', methods=['GET'])
 def get_player_data(player_name):
     """Return data for a specific player."""
-    player = next((player for team in teams_data for player in team.players if player.name.lower() == player_name.lower()), None)
-    return jsonify(player.to_dict() if player else {})
+    player = next(
+        (player for team in teams_data for player in team.players if player.name.lower() == player_name.lower()), 
+        None
+    )
+    
+    if player:
+        # Find the team associated with the player
+        team_name = next(team.name for team in teams_data if player in team.players)
+        team_logo = next(team.logo for team in teams_data if player in team.players)
+
+        # Construct the response with club info
+        response_data = player.to_dict()
+        response_data['club'] = {
+            "club_name": team_name,
+            "club_logo": team_logo
+        }
+        return jsonify(response_data)
+    
+    return jsonify({})
+
 
 @app.route('/api/search/<search_query>', methods=['GET'])
 def search_data(search_query):
     """Search for teams or players based on a search query."""
     results = {
-        "teams": [team.to_dict() for team in teams_data if search_query.lower() in team.name.lower()],
-        "players": [player.to_dict() for team in teams_data for player in team.players if search_query.lower() in player.name.lower()]
+        "teams": [
+            team.to_dict() for team in teams_data 
+            if search_query.lower() in team.name.lower()
+        ],
+        "players": [
+            {
+                **player.to_dict(),  # Convert player to dict
+                "club": {            # Add club as an object
+                    "club_name": team.name,
+                    "club_logo": team.logo
+                }
+            } for team in teams_data for player in team.players 
+            if search_query.lower() in player.name.lower()
+        ]
     }
     return jsonify(results)
 
@@ -53,13 +119,16 @@ def search_data(search_query):
 def search_data_query():
     return get_all_data()
 
+
 @app.route('/api/export', methods=['GET'])
 def export_data():
     """Export teams and players data to a CSV file and send it as a response."""
     csv_file_path = 'teams_data.csv'
     
     # Define the CSV headers
-    headers = ['Team Name', 'Player Number', 'Player Name', 'Profile Link', 'Stat Link', 'Nationalities', 'Full Name', 'DOB', 'Age', 'Height', 'Foot', 'Awards', 'Appearances', 'Goals', 'Minutes Played', 'Club History', 'Position', 'Image URL']
+    headers = ['Team Name', 'Player Number', 'Player Name', 'Profile Link', 'Stat Link', 'Nationalities', 
+               'Full Name', 'DOB', 'Age', 'Height', 'Foot', 'Awards', 'Appearances', 'Goals', 
+               'Minutes Played', 'Club History', 'Position', 'Image URL']
     
     # Write data to CSV file
     with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -90,8 +159,7 @@ def export_data():
                 ])
     
     # Send the CSV file as a response
-    return send_file(csv_file_path, as_attachment=True, attachment_filename='teams_data.csv')
-
+    return send_file(csv_file_path, as_attachment=True, download_name='teams_data.csv')
 
 
 # Load configuration from YAML file
