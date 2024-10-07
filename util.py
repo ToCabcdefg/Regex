@@ -105,7 +105,7 @@ def get_transfer_content(url):
 
         driver.switch_to.frame(driver.find_elements(By.TAG_NAME, "iframe")[1])
 
-        accept_button = WebDriverWait(driver, 3).until(
+        accept_button = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.XPATH, "//button[@title='Accept & continue']"))
         )
 
