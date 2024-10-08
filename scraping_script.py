@@ -80,19 +80,20 @@ def get_player_data(player_name):
     )
     
     if player:
-        # Find the team associated with the player
-        team_name = next(team.name for team in teams_data if player in team.players)
-        team_logo = next(team.logo for team in teams_data if player in team.players)
-
-        # Construct the response with club info
-        response_data = player.to_dict()
-        response_data['club'] = {
-            "club_name": team_name,
-            "club_logo": team_logo
-        }
-        return jsonify(response_data)
+        # Safely find the team associated with the player
+        team = next((team for team in teams_data if player in team.players), None)
+        
+        if team:
+            # Construct the response with club info
+            response_data = player.to_dict()
+            response_data['club'] = {
+                "club_name": team.name,
+                "club_logo": team.logo  # Ensure logo exists in team data
+            }
+            return jsonify(response_data)
     
-    return jsonify({})
+    # If no player is found or no team associated with the player
+    return jsonify({"error": "Player not found"}), 404
 
 
 @app.route('/api/search/<search_query>', methods=['GET'])
@@ -138,8 +139,8 @@ def export_csv():
 
 # Load configuration from YAML file
 # Default to development config
-config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')
-# config_file = os.getenv('CONFIG_FILE', 'config_docker.yaml')  # For docker config
+# config_file = os.getenv('CONFIG_FILE', 'config_dev.yaml')
+config_file = os.getenv('CONFIG_FILE', 'config_docker.yaml')  # For docker config
 with open(config_file, 'r') as config_file:
     config = yaml.safe_load(config_file)
 
@@ -160,11 +161,11 @@ if os.path.exists(CACHE_FILE):
         response_cache = json.load(cache_file)
         
 class Team:
-    def __init__(self, name, link):
+    def __init__(self, name, link, logo=""):
         self.name = name
         self.link = link
         self.players = []
-        self.logo = ""
+        self.logo = logo
         self.background = ""
 
     def __str__(self):
@@ -229,9 +230,9 @@ class Player:
             "stat_link": self.stat_link,
             "nationalities": self.nationalities,
             "full_name": self.full_name,
-            "DOB": self.DOB + " (" + self.age + ")",
+            "DOB": self.DOB,
             "age": self.age,
-            "height": self.height[:-2] if self.height else "",
+            "height": self.height,
             "foot": self.foot,
             "awards": self.awards,
             "appearances": self.appearances,
@@ -304,8 +305,12 @@ def get_player_data(player, file_path='data.json'):
     options = Options()
     options.add_argument("--headless")  # Ensure GUI is off for headless mode
     options.add_argument("--disable-extensions")  # Disable extensions for performance
+    options.add_argument("--no-sandbox")  # Bypass OS security model for Docker
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")  # Disable GPU acceleration
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
+
 
     try:
         # Fetch player details using Selenium
@@ -414,7 +419,7 @@ def prepare_players_list(data):
                 'player_name': player['name'],
                 'nationalities': ' | '.join(player['nationalities']),
                 'full_name': player['full_name'],
-                'DOB': player['DOB'],
+                'DOB': player['DOB'][:-4],
                 'age': player['age'],
                 'height': player['height'],
                 'foot': player['foot'],
@@ -570,8 +575,11 @@ def get_player_in_team(team: Team):
 
 def get_transfer_content(url, max_retries=3, wait_time=5):
     options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--disable-extensions")
+    options.add_argument("--headless")  # Ensure GUI is off for headless mode
+    options.add_argument("--disable-extensions")  # Disable extensions for performance
+    options.add_argument("--no-sandbox")  # Bypass OS security model for Docker
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")  # Disable GPU acceleration
 
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
@@ -686,7 +694,7 @@ def load_teams_from_json(file_path='data.json'):
     with open(file_path, 'r') as file:
         data = json.load(file)
         for team_data in data:
-            team = Team(name=team_data['name'], link=team_data['link'])
+            team = Team(name=team_data['name'], link=team_data['link'], logo=team_data["logo"])
             
             for player_data in team_data['players']:
                 player = Player(
